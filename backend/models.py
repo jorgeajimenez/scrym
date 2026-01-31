@@ -76,6 +76,81 @@ class WinProbabilityModel(nn.Module):
     def forward(self, x):
         return torch.sigmoid(self.net(x))
 
+class OffensivePlayCallerModel(nn.Module):
+    """
+    Multi-class classification for Offensive Play Calling.
+    Predicts: Pass, Run, Play Action, Screen, Draw (5 classes)
+    """
+    def __init__(self, input_dim, num_classes=5):
+        super(OffensivePlayCallerModel, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Linear(32, num_classes)
+        )
+
+    def forward(self, x):
+        return self.net(x) # Returns logits
+
+class DefensiveCoordinatorModel(nn.Module):
+    """
+    Binary classification for Defensive Prediction.
+    Predicts: Pass (1) or Run (0)
+    """
+    def __init__(self, input_dim):
+        super(DefensiveCoordinatorModel, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 96),
+            nn.BatchNorm1d(96),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(96, 48),
+            nn.BatchNorm1d(48),
+            nn.ReLU(),
+            nn.Dropout(0.15),
+            nn.Linear(48, 24),
+            nn.BatchNorm1d(24),
+            nn.ReLU(),
+            nn.Linear(24, 1)
+        )
+
+    def forward(self, x):
+        return torch.sigmoid(self.net(x))
+
+class PersonnelOptimizerModel(nn.Module):
+    """
+    Multi-class classification for Personnel Grouping.
+    Predicts: 11, 12, 21, 13, 22, etc. (mapped to indices)
+    """
+    def __init__(self, input_dim, num_classes):
+        super(PersonnelOptimizerModel, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 96),
+            nn.BatchNorm1d(96),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(96, 48),
+            nn.BatchNorm1d(48),
+            nn.ReLU(),
+            nn.Dropout(0.15),
+            nn.Linear(48, 24),
+            nn.BatchNorm1d(24),
+            nn.ReLU(),
+            nn.Linear(24, num_classes)
+        )
+
+    def forward(self, x):
+        return self.net(x) # Returns logits
+
 def save_model(model, path):
     torch.save(model.state_dict(), path)
     print(f"Model saved to {path}")

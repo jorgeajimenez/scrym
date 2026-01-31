@@ -11,7 +11,10 @@ import joblib
 import numpy as np
 from pathlib import Path
 
-from models import FourthDownDecisionModel, WinProbabilityModel
+from models import (
+    FourthDownDecisionModel, WinProbabilityModel,
+    OffensivePlayCallerModel, DefensiveCoordinatorModel, PersonnelOptimizerModel
+)
 from feature_engineering import NFLFeatureEngineer
 from demo_scenarios import get_demo_scenarios, get_scenario_by_id
 
@@ -29,9 +32,10 @@ app.add_middleware(
 MODEL_DIR = Path(__file__).parent.parent / "models"
 DATA_DIR = Path(__file__).parent.parent / "data"
 
-# Global model/scaler storage
+# Global model/scaler/encoder storage
 models = {}
 scalers = {}
+encoders = {}
 
 class GameState(BaseModel):
     down: int
@@ -42,31 +46,48 @@ class GameState(BaseModel):
     game_seconds_remaining: int
     posteam_timeouts_remaining: int
     defteam_timeouts_remaining: int
+    # Optional context for specific models
+    half_seconds_remaining: int = 1800 # default
+    red_zone: int = 0
+    goal_to_go: int = 0
+    two_min_drill: int = 0
 
 @app.on_event("startup")
 def load_artifacts():
     try:
-        # Load Scalers
+        # Load Scalers & Encoders
         if (DATA_DIR / "scalers.pkl").exists():
             scalers['all'] = joblib.load(DATA_DIR / "scalers.pkl")
+        if (DATA_DIR / "encoders.pkl").exists():
+            encoders['all'] = joblib.load(DATA_DIR / "encoders.pkl")
         
-        # Load 4th Down Model
-        if (MODEL_DIR / "fourth_down_model.pt").exists():
-            fd_model = FourthDownDecisionModel(input_dim=6)
-            fd_model.load_state_dict(torch.load(MODEL_DIR / "fourth_down_model.pt", map_location='cpu'))
-            fd_model.eval()
-            models['fourth_down'] = fd_model
+        # Helper to load model safely
+        def load_net(name, cls, **kwargs):
+            path = MODEL_DIR / f"{name}.pt"
+            if path.exists():
+                model = cls(**kwargs)
+                model.load_state_dict(torch.load(path, map_location='cpu'))
+                model.eval()
+                models[name] = model
+
+        # Load Models
+        load_net('fourth_down_model', FourthDownDecisionModel, input_dim=6)
+        load_net('win_prob_model', WinProbabilityModel, input_dim=8)
         
-        # Load Win Prob Model
-        if (MODEL_DIR / "win_prob_model.pt").exists():
-            wp_model = WinProbabilityModel(input_dim=8)
-            wp_model.load_state_dict(torch.load(MODEL_DIR / "win_prob_model.pt", map_location='cpu'))
-            wp_model.eval()
-            models['win_prob'] = wp_model
+        # Load new models if encoder classes exist to determine output dim
+        if 'offensive' in encoders.get('all', {}):
+            n_classes = len(encoders['all']['offensive'].classes_)
+            load_net('offensive_model', OffensivePlayCallerModel, input_dim=11, num_classes=n_classes)
+            
+        load_net('defensive_model', DefensiveCoordinatorModel, input_dim=9)
+        
+        if 'personnel' in encoders.get('all', {}):
+            n_classes = len(encoders['all']['personnel'].classes_)
+            load_net('personnel_model', PersonnelOptimizerModel, input_dim=6, num_classes=n_classes)
         
         print(f"✅ API Artifacts Loaded: {list(models.keys())}")
     except Exception as e:
-        print(f"⚠️ Warning: Could not load models. Ensure training is complete. Error: {e}")
+        print(f"⚠️ Warning: Model loading failed. Error: {e}")
 
 @app.get("/demo/scenarios")
 def list_demo_scenarios():
@@ -80,6 +101,49 @@ def load_demo_scenario(scenario_id: str):
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
     return scenario
+
+@app.post("/predict/offensive")
+async def predict_offensive(state: GameState):
+    if 'offensive_model' not in models: raise HTTPException(503, "Offensive model not loaded")
+    
+    # Input: [down, ydstogo, yardline_100, score_diff, qtr, game_sec, half_sec, rz, gtg, 2min, to_pos]
+    feats = np.array([[
+        state.down, state.ydstogo, state.yardline_100, state.score_differential,
+        state.qtr, state.game_seconds_remaining, state.half_seconds_remaining,
+        state.red_zone, state.goal_to_go, state.two_min_drill, state.posteam_timeouts_remaining
+    ]])
+    scaled = torch.FloatTensor(scalers['all']['offensive'].transform(feats))
+    
+    with torch.no_grad():
+        logits = models['offensive_model'](scaled)
+        probs = torch.softmax(logits, dim=1).numpy()[0]
+    
+    classes = encoders['all']['offensive'].classes_
+    result = {cls: float(prob) for cls, prob in zip(classes, probs)}
+    
+    # Get top recommendation
+    best_play = max(result, key=result.get)
+    return {"recommendation": best_play, "probabilities": result}
+
+@app.post("/predict/defensive")
+async def predict_defensive(state: GameState):
+    if 'defensive_model' not in models: raise HTTPException(503, "Defensive model not loaded")
+    
+    # Input: [down, ydstogo, yardline_100, score_diff, qtr, game_sec, rz, gtg, 2min]
+    feats = np.array([[
+        state.down, state.ydstogo, state.yardline_100, state.score_differential,
+        state.qtr, state.game_seconds_remaining, 
+        state.red_zone, state.goal_to_go, state.two_min_drill
+    ]])
+    scaled = torch.FloatTensor(scalers['all']['defensive'].transform(feats))
+    
+    with torch.no_grad():
+        pass_prob = models['defensive_model'](scaled).item()
+    
+    return {
+        "recommendation": "Pass Defense" if pass_prob > 0.5 else "Run Defense",
+        "pass_probability": round(pass_prob, 4)
+    }
 
 @app.post("/predict/fourth-down")
 async def predict_fourth_down(state: GameState):

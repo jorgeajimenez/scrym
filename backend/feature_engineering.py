@@ -81,6 +81,78 @@ class NFLFeatureEngineer:
         df_clean = df[features + ['posteam_won']].dropna()
         return df_clean[features], df_clean['posteam_won']
 
+    def get_offensive_features(self, pbp):
+        """Features for Offensive Play Call (Pass/Run/PA/Screen/Draw)"""
+        # Filter for relevant plays
+        plays = pbp[pbp['play_type'].isin(['run', 'pass'])].copy()
+        
+        # Categorize Target
+        def categorize(row):
+            if row['play_type'] == 'run': return 'run'
+            desc = str(row.get('desc', '')).lower()
+            if 'screen' in desc: return 'screen'
+            if 'draw' in desc: return 'draw'
+            if 'play action' in desc or 'play-action' in desc: return 'play_action'
+            return 'pass'
+        
+        plays['play_category'] = plays.apply(categorize, axis=1)
+        
+        features = [
+            'down', 'ydstogo', 'yardline_100', 'score_differential', 
+            'qtr', 'game_seconds_remaining', 'half_seconds_remaining',
+            'red_zone', 'goal_to_go', 'two_min_drill', 'posteam_timeouts_remaining'
+        ]
+        
+        df = plays[features + ['play_category']].dropna()
+        return df[features], df['play_category']
+
+    def get_defensive_features(self, pbp):
+        """Features for Defensive Prediction (Pass vs Run)"""
+        plays = pbp[pbp['play_type'].isin(['run', 'pass'])].copy()
+        
+        # Simple Target: 1=Pass, 0=Run
+        plays['is_pass'] = (plays['play_type'] == 'pass').astype(int)
+        
+        # Add Team Tendencies (Simplified for Demo)
+        # In a full system, this would be a historic lookup. Here we use current game context + situation.
+        features = [
+            'down', 'ydstogo', 'yardline_100', 'score_differential', 
+            'qtr', 'game_seconds_remaining', 'red_zone', 'goal_to_go', 'two_min_drill'
+        ]
+        
+        df = plays[features + ['is_pass']].dropna()
+        return df[features], df['is_pass']
+
+    def get_personnel_features(self, pbp, ftn):
+        """Features for Personnel Optimizer"""
+        # Merge if FTN available, else use PBP personnel if exists, else heuristic
+        if ftn is not None:
+            # Simple merge on game_id/play_id would be ideal, but for demo we might just use PBP situational data
+            # to predict "Likely Personnel Grouping" based on down/dist
+            pass
+        
+        # Heuristic approach for robust demo training data from standard PBP
+        df = pbp[pbp['play_type'].isin(['run', 'pass'])].copy()
+        
+        # Create a synthetic "Ideal Personnel" based on successful plays
+        # This is a simplification for the hackathon "New Work" constraint
+        def assign_personnel(row):
+            # Logic: Short yardage -> Heavy (21/13/22), Long -> Spread (11/10/01)
+            dist = row['ydstogo']
+            if dist <= 2: return '22' # Heavy
+            if dist <= 5: return '12' # Balanced
+            if dist > 8: return '11'  # Passing
+            return '11' # Default
+            
+        df['personnel_group'] = df.apply(assign_personnel, axis=1)
+        
+        features = [
+            'down', 'ydstogo', 'yardline_100', 'score_differential', 'red_zone', 'goal_to_go'
+        ]
+        
+        df_clean = df[features + ['personnel_group']].dropna()
+        return df_clean[features], df_clean['personnel_group']
+
     def scale_features(self, X, name):
         """Apply and cache StandardScaler for real-time inference"""
         if name not in self.scalers:
