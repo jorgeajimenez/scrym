@@ -143,6 +143,17 @@ The Backend must set `clock_running: false` if:
     *   **The Gauge:** A needle wobbling between "RUN" and "PASS". It shouldn't be perfectly still; add some CSS jitter to mimic uncertainty.
     *   **The Alarm:** If `pass_probability > 80%`, flash a "BLITZ ALERT" badge.
 
+### 🧠 Feature D: Gemini Assistant Coach (The Wisdom)
+**The Vibe:** A veteran coach whispering in your ear, reviewing the AI's logic.
+**Integration Logic:**
+1.  **Trigger:** After a predictive model returns a result (e.g., "GO" or "PASS").
+2.  **Action:** Call `POST /analyze/play`.
+3.  **Parallel Pattern:** 
+    *   Call the Predictive Model and Gemini **simultaneously**. 
+    *   The Predictive Model result is the **Primary Trigger** (shows the Green Light instantly).
+    *   The Gemini response follows shortly after (e.g., +1s delay) as a **"Coach's Note"** or notification bubble.
+4.  **Content:** This adds roster awareness (e.g., "Mahomes is in the rhythm, trust the pass") that the raw weights lack.
+
 ---
 
 ## 5. Simulation Mode: "Ghost in the Machine"

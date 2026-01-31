@@ -47,9 +47,25 @@ curl -X POST "http://localhost:8000/predict/personnel" -H "Content-Type: applica
 curl -X POST "http://localhost:8000/predict/formation" -H "Content-Type: application/json" -d '{"play_type":"pass","personnel":"11","ydstogo":10}'
 ```
 
+### 🧠 Gemini Assistant Coach
+**Scenario:** Get a natural language explanation for a decision. This endpoint synthesizes raw analytics with team roster context.
+```bash
+# Optional: Requires GEMINI_API_KEY environment variable.
+curl -X POST "http://localhost:8000/analyze/play" -H "Content-Type: application/json" -d '{"state":{"down":4,"ydstogo":1,"yardline_100":45,"score_differential":0,"qtr":3,"game_seconds_remaining":900,"posteam_timeouts_remaining":3,"defteam_timeouts_remaining":3},"recommendation":"GO (High Confidence)","team_abbr":"KC"}'
+```
+
 ---
 
 ## 3. Utility Endpoints
+
+### 🏥 Health Check & Troubleshooting
+Verify the API is up and models are loaded:
+```bash
+curl -X GET "http://localhost:8000/health"
+```
+
+**If Gemini is not working:**
+Ensure you have installed the updated requirements: `pip install -r backend/requirements.txt` and exported your key: `export GEMINI_API_KEY="..."`. The API will gracefully return an error message if the key is missing rather than crashing.
 ...
 ### 🏥 Health Check & Troubleshooting
 Verify the API is up and models are loaded:
