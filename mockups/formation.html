@@ -3,107 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formation Visualizer</title>
+    <title>Formation Logic Tester</title>
     <style>
-        :root { --bg: #0f172a; --text: #f8fafc; --field: #1e293b; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .controls { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
-        select, button { padding: 10px; border-radius: 4px; border: none; font-size: 16px; cursor: pointer; }
-        canvas { background: var(--field); border: 2px solid #334155; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .legend { margin-top: 10px; font-size: 14px; opacity: 0.7; }
+        :root { --bg: #0f172a; --text: #f8fafc; --field: #1e293b; --accent: #3b82f6; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background: #111827; padding: 20px; border-radius: 12px; border: 1px solid #374151; width: 600px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 12px; font-weight: bold; color: #9ca3af; text-transform: uppercase; }
+        input, select { padding: 10px; border-radius: 6px; border: 1px solid #4b5563; background: #1f2937; color: white; font-size: 14px; }
+        
+        button { grid-column: span 2; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #2563eb; }
+
+        canvas { background: var(--field); border: 2px solid #334155; border-radius: 8px; margin-top: 20px; width: 100%; height: 300px; }
+        .formation-label { margin-top: 10px; font-size: 18px; font-weight: 900; color: var(--accent); }
+        .curl-hint { margin-top: 20px; font-family: monospace; font-size: 11px; color: #6b7280; background: #000; padding: 10px; border-radius: 4px; width: 100%; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
-    <h2>🏈 Formation Visualizer</h2>
-    
-    <div class="controls">
-        <select id="formationSelect">
-            <optgroup label="Offense">
-                <option value="Shotgun Spread">Shotgun Spread</option>
-                <option value="Singleback Ace">Singleback Ace</option>
-                <option value="I-Formation">I-Formation</option>
-                <option value="Empty Set">Empty Set</option>
-            </optgroup>
-            <optgroup label="Defense">
-                <option value="Base 4-3">Base 4-3</option>
-                <option value="Nickel 4-2-5">Nickel 4-2-5</option>
-                <option value="Goal Line 6-2">Goal Line 6-2</option>
-            </optgroup>
-        </select>
-        <button onclick="drawFormation()">LOAD</button>
-    </div>
+    <div class="container">
+        <div class="header">
+            <h3>♟️ Formation Logic Tester</h3>
+            <select id="scenarioSelect" onchange="loadScenario()">
+                <option value="">-- Select Scenario --</option>
+                <option value='{"play_type":"pass", "personnel":"11", "ydstogo":10, "is_2min":0}'>3rd & 10 (Standard Pass)</option>
+                <option value='{"play_type":"run", "personnel":"21", "ydstogo":1, "is_2min":0}'>4th & 1 (Power Run)</option>
+                <option value='{"play_type":"pass", "personnel":"10", "ydstogo":5, "is_2min":1}'>2-Min Drill (Empty Set)</option>
+                <option value='{"play_type":"run", "personnel":"11", "ydstogo":10, "is_2min":0}'>1st & 10 (Draw/Zone)</option>
+            </select>
+        </div>
 
-    <canvas id="fieldCanvas" width="500" height="300"></canvas>
-    
-    <div class="legend">
-        Origin (0,0) is center ball. Blue = Offense, Red = Defense.
+        <div class="form-grid">
+            <div class="field">
+                <label>Play Type</label>
+                <select id="play_type">
+                    <option value="pass">PASS</option>
+                    <option value="run">RUN</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Personnel</label>
+                <input type="text" id="personnel" value="11" placeholder="e.g. 11, 12, 21">
+            </div>
+            <div class="field">
+                <label>Yards to Go</label>
+                <input type="number" id="ydstogo" value="10">
+            </div>
+            <div class="field">
+                <label>Clock Mode</label>
+                <select id="is_2min">
+                    <option value="0">Normal</option>
+                    <option value="1">2-Minute Drill</option>
+                </select>
+            </div>
+            <button onclick="processAndDraw()">LOAD & DRAW FORMATION</button>
+        </div>
+
+        <div class="formation-label" id="formationDisplay">SELECT A SCENARIO</div>
+        <canvas id="fieldCanvas" width="600" height="300"></canvas>
+        
+        <div class="curl-hint" id="curlPreview">
+            curl -X POST "http://localhost:8000/predict/formation" ...
+        </div>
     </div>
 
     <script>
-        // Coordinates from formation_logic.py
-        const DATA = {
-            "Shotgun Spread": [
-                {r: "C", x: 0, y: 0, c: "blue"}, {r: "QB", x: 0, y: -5, c: "blue"},
-                {r: "LG", x: -1.5, y: 0, c: "blue"}, {r: "RG", x: 1.5, y: 0, c: "blue"},
-                {r: "LT", x: -3, y: 0, c: "blue"}, {r: "RT", x: 3, y: 0, c: "blue"},
-                {r: "RB", x: 1.5, y: -5, c: "blue"}, {r: "WR", x: -20, y: 0, c: "blue"},
-                {r: "WR", x: 20, y: 0, c: "blue"}, {r: "WR", x: -15, y: 0, c: "blue"}, {r: "TE", x: 4.5, y: 0, c: "blue"}
-            ],
-            "I-Formation": [
-                {r: "C", x: 0, y: 0, c: "blue"}, {r: "QB", x: 0, y: -1, c: "blue"},
-                {r: "FB", x: 0, y: -4, c: "blue"}, {r: "RB", x: 0, y: -7, c: "blue"},
-                {r: "WR", x: -20, y: 0, c: "blue"}, {r: "WR", x: 20, y: 0, c: "blue"}, {r: "TE", x: 4.5, y: 0, c: "blue"}
-            ],
-            "Base 4-3": [
-                {r: "DE", x: -4, y: 1, c: "red"}, {r: "DT", x: -1.5, y: 1, c: "red"},
-                {r: "DT", x: 1.5, y: 1, c: "red"}, {r: "DE", x: 4, y: 1, c: "red"},
-                {r: "LB", x: -4, y: 4, c: "red"}, {r: "MLB", x: 0, y: 4, c: "red"}, {r: "LB", x: 4, y: 4, c: "red"},
-                {r: "CB", x: -20, y: 5, c: "red"}, {r: "CB", x: 20, y: 5, c: "red"},
-                {r: "S", x: -8, y: 12, c: "red"}, {r: "S", x: 8, y: 12, c: "red"}
-            ]
-            // ... more can be added easily
+        // Mapped from backend/formation_logic.py
+        const TEMPLATES = {
+            "Shotgun Spread": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-5},{r:"RB",x:1.5,y:-5},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"WR",x:-15,y:0},{r:"TE",x:4.5,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
+            "I-Formation": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-1},{r:"FB",x:0,y:-4},{r:"RB",x:0,y:-7},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"TE",x:4.5,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
+            "Empty Set": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-5},{r:"WR",x:-22,y:0},{r:"WR",x:-16,y:0},{r:"WR",x:22,y:0},{r:"WR",x:16,y:0},{r:"WR",x:10,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
+            "Singleback Ace": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-1},{r:"RB",x:0,y:-6},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"TE",x:-4.5,y:0},{r:"TE",x:4.5,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}]
         };
 
-        const canvas = document.getElementById('fieldCanvas');
-        const ctx = canvas.getContext('2d');
-        const SCALE = 10; // 1 yard = 10 pixels
-
-        function drawFormation() {
-            const name = document.getElementById('formationSelect').value;
-            const players = DATA[name] || [];
-            
-            // Clear
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw Line of Scrimmage
-            ctx.strokeStyle = "rgba(255,255,255,0.2)";
-            ctx.beginPath(); ctx.moveTo(0, 150); ctx.lineTo(500, 150); ctx.stroke();
-
-            // Draw Center Hash
-            ctx.fillStyle = "white";
-            ctx.fillRect(248, 148, 4, 4);
-
-            players.forEach(p => {
-                const drawX = 250 + (p.x * SCALE);
-                const drawY = 150 - (p.y * SCALE); // Y is inverted in canvas vs coords
-
-                // Player Circle
-                ctx.fillStyle = p.c === "blue" ? "#3b82f6" : "#ef4444";
-                ctx.beginPath();
-                ctx.arc(drawX, drawY, 8, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Role Label
-                ctx.fillStyle = "white";
-                ctx.font = "bold 10px Arial";
-                ctx.textAlign = "center";
-                ctx.fillText(p.r, drawX, drawY + 4);
-            });
+        function loadScenario() {
+            const val = document.getElementById('scenarioSelect').value;
+            if (!val) return;
+            const data = JSON.parse(val);
+            document.getElementById('play_type').value = data.play_type;
+            document.getElementById('personnel').value = data.personnel;
+            document.getElementById('ydstogo').value = data.ydstogo;
+            document.getElementById('is_2min').value = data.is_2min;
+            processAndDraw();
         }
 
-        // Initial draw
-        drawFormation();
+        function processAndDraw() {
+            const play = document.getElementById('play_type').value;
+            const pers = document.getElementById('personnel').value;
+            const togo = parseInt(document.getElementById('ydstogo').value);
+            const is2m = parseInt(document.getElementById('is_2min').value);
+
+            // LOGIC (Mirrors formation_logic.py)
+            let name = "Singleback Ace";
+            if (is2m === 1) name = "Empty Set";
+            else if (play === "run") {
+                if (["21","22","13"].includes(pers) && togo < 3) name = "I-Formation";
+                else name = "Singleback Ace";
+            } else {
+                if (togo > 7) name = "Shotgun Spread";
+                else name = "Singleback Ace";
+            }
+
+            document.getElementById('formationDisplay').textContent = name.toUpperCase();
+            
+            // Update CURL preview
+            document.getElementById('curlPreview').textContent = `curl -X POST "http://localhost:8000/predict/formation" -H "Content-Type: application/json" -d '{"play_type":"${play}", "personnel":"${pers}", "ydstogo":${togo}, "is_2min":${is2m}}'`;
+
+            draw(TEMPLATES[name]);
+        }
+
+        function draw(players) {
+            const canvas = document.getElementById('fieldCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,600,300);
+            
+            // Line of Scrimmage
+            ctx.strokeStyle = "rgba(255,255,255,0.1)";
+            ctx.beginPath(); ctx.moveTo(0,150); ctx.lineTo(600,150); ctx.stroke();
+
+            players.forEach(p => {
+                const x = 300 + (p.x * 12);
+                const y = 150 - (p.y * 12);
+                ctx.fillStyle = "#3b82f6";
+                ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "white";
+                ctx.font = "bold 9px Inter"; ctx.textAlign="center";
+                ctx.fillText(p.r, x, y+3);
+            });
+        }
     </script>
 </body>
 </html>
