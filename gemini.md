@@ -4,7 +4,8 @@
 1. **GitHub Issues First:** NO WORK (implementation, refactoring, or bug fixing) shall be performed without a corresponding GitHub Issue.
 2. **Atomic Commits:** Each issue should ideally map to a specific task or feature.
 3. **Resource Isolation:** The `resources/nfl/` directory is for **read-only reference**. No code shall be copied directly; logic must be re-implemented to comply with hackathon "New Work" rules.
-4. **Validation:** Every implementation step must be followed by verification (tests/build checks).
+4. **Mockups:** Visual and UX validation should be placed in the `mockups/` directory as pure JS/HTML/CSS for rapid iteration before full-stack implementation.
+5. **Validation:** Every implementation step must be followed by verification (tests/build checks).
 
 ## 🚀 Hackathon Mandates
 - **Track:** Statement One - The Playbook (Computational Sports).
