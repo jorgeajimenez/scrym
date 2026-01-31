@@ -6,6 +6,7 @@
 3. **Resource Isolation:** The `resources/nfl/` directory is for **read-only reference**. No code shall be copied directly; logic must be re-implemented to comply with hackathon "New Work" rules.
 4. **Mockups:** Visual and UX validation should be placed in the `mockups/` directory as pure JS/HTML/CSS for rapid iteration before full-stack implementation.
 5. **Validation:** Every implementation step must be followed by verification (tests/build checks).
+6. **No Python Execution:** The agent MUST NEVER execute Python scripts (training, inference, verification, etc.) directly. All script execution is the sole responsibility of the user. The agent shall only provide the necessary commands.
 
 ## 🚀 Hackathon Mandates
 - **Track:** Statement One - The Playbook (Computational Sports).
