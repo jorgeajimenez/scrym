@@ -1,113 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFL AI Coach - Mockup</title>
+    <title>NFL AI Coach - Ultimate</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="theme-dark">
 
-    <div class="app-container">
-        <!-- Persona Switcher -->
-        <nav class="persona-nav">
-            <button class="nav-btn active" data-target="head-coach">HC</button>
-            <button class="nav-btn" data-target="offense">OC</button>
-            <button class="nav-btn" data-target="defense">DC</button>
-        </nav>
+<body>
 
-        <!-- HEAD COACH VIEW (The Traffic Light) -->
-        <main id="head-coach" class="view active">
-            <div class="game-situation">
-                <div class="score-bug">
-                    <span class="team">SF</span> <span class="score">24</span>
-                    <span class="vs">-</span>
-                    <span class="score">24</span> <span class="team">KC</span>
+    <!-- MAIN STAGE: Canvas + HUD -->
+    <div class="app-stage">
+
+        <canvas id="football-canvas"></canvas>
+
+        <div class="hud-layer">
+
+            <!-- TOP BAR -->
+            <div class="hud-top">
+                <div class="score-pill">
+                    <span style="color:var(--blue-600)">KC 24</span>
+                    <div class="score-divider"></div>
+                    <span style="color:var(--red-600)">BUF 21</span>
+                    <div class="score-divider"></div>
+                    <span class="clock-display" id="game-clock">08:45</span>
+                    <span style="font-size:0.7rem; color:var(--slate-400); margin-left:0.5rem">Q3</span>
                 </div>
-                <div class="down-dist">4th & 2</div>
-                <div class="field-pos">OPP 42</div>
-            </div>
 
-            <div class="decision-card decision-go">
-                <div class="decision-label">RECOMMENDATION</div>
-                <div class="decision-main">GO</div>
-                <div class="decision-sub">Win Prob: +4.2%</div>
-            </div>
-
-            <div class="secondary-options">
-                <div class="option">
-                    <span class="lbl">PUNT</span>
-                    <span class="val">-1.5% WP</span>
+                <!-- Win Prob Gauge V2 -->
+                <div class="win-prob-widget">
+                    <div style="font-size:0.6rem; color:var(--slate-400); letter-spacing:1px; text-transform:uppercase">
+                        Win Probability</div>
+                    <div class="prob-main" style="color:var(--white)">67%</div>
+                    <div class="prob-bar">
+                        <div class="prob-fill" style="width:67%"></div>
+                    </div>
+                    <div class="prob-stats">
+                        <span>MOMENTUM: +2.4</span>
+                        <span>COMEBACK: 12%</span>
+                    </div>
                 </div>
-                <div class="option">
-                    <span class="lbl">FG</span>
-                    <span class="val">-0.8% WP</span>
-                </div>
-            </div>
 
-            <div class="timeout-alert hidden">
-                ⚠️ TAKE TIMEOUT
-            </div>
-        </main>
-
-        <!-- OFFENSIVE COORD VIEW (The Menu) -->
-        <main id="offense" class="view">
-            <div class="play-clock">0:18</div>
-            
-            <div class="play-menu">
-                <button class="play-card" onclick="sendToQB('BLUE 42 - PA CROSS')">
-                    <div class="play-type">PASS (SAFE)</div>
-                    <div class="play-name">PA Crossers</div>
-                    <div class="play-conf">65%</div>
-                </button>
-                <button class="play-card" onclick="sendToQB('RED 88 - ISO')">
-                    <div class="play-type">RUN (INSIDE)</div>
-                    <div class="play-name">Zone Lead</div>
-                    <div class="play-conf">42%</div>
-                </button>
-                <button class="play-card" onclick="sendToQB('GOLD 9 - GO')">
-                    <div class="play-type">SHOT (DEEP)</div>
-                    <div class="play-name">Verts</div>
-                    <div class="play-conf">15%</div>
-                </button>
-            </div>
-
-            <div id="qb-comms-overlay" class="overlay hidden">
-                <div class="overlay-content">
-                    <div class="overlay-label">SENDING TO QB...</div>
-                    <div class="wristband-code" id="wristband-display">BLUE 42</div>
-                    <div class="success-check">✅ SENT</div>
-                </div>
-            </div>
-        </main>
-
-        <!-- DEFENSIVE COORD VIEW (The Radar) -->
-        <main id="defense" class="view">
-            <div class="radar-header">
-                <span class="status-live">● LIVE</span>
-                <span class="personnel-match">MATCH: NICKEL</span>
-            </div>
-
-            <div class="alert-box alert-high">
-                <div class="alert-icon">⚠️</div>
-                <div class="alert-msg">WATCH SCREEN</div>
-                <div class="alert-loc">LEFT SIDE</div>
-            </div>
-
-            <div class="tendency-bar">
-                <div class="tendency-label">Pass Prob</div>
-                <div class="progress-container">
-                    <div class="progress-bar" style="width: 85%;">85%</div>
+                <div class="hud-controls">
+                    <button class="hud-btn" id="config-toggle"><i data-lucide="settings-2" size="18"></i></button>
+                    <button class="hud-btn" id="vision-toggle"><i data-lucide="eye" size="18"></i></button>
+                    <button class="hud-btn" style="position:relative">
+                        <i data-lucide="bell" size="18"></i>
+                        <div class="notification-dot"></div>
+                    </button>
                 </div>
             </div>
 
-            <div class="formation-visual">
-                <div class="formation-text">EMPTY SET (0 RB)</div>
+            <!-- DECISION WIDGET (Left Floating) -->
+            <div class="decision-card" id="decision-widget">
+                <div class="decision-header">
+                    <span>4th Down Decision</span>
+                    <span class="risk-tag">RISK: LOW</span>
+                </div>
+                <div class="recommendation-badge">GO FOR IT</div>
+                <div class="metric-row">
+                    <span>Conversion Prob</span>
+                    <span class="metric-val" style="color:var(--emerald-400)">68%</span>
+                </div>
+                <div class="metric-row">
+                    <span>Exp Points (EPA)</span>
+                    <span class="metric-val">+1.24</span>
+                </div>
+                <div class="metric-row" style="border:none">
+                    <span>Model Confidence</span>
+                    <span class="metric-val">92%</span>
+                </div>
             </div>
-        </main>
+
+            <!-- DEFENSE RADAR (Right Floating) -->
+            <div class="radar-widget" id="radar-widget">
+                <!-- Simple SVG Radar Mock -->
+                <svg viewBox="0 0 100 100" style="width:100%; height:100%">
+                    <polygon points="50,10 90,40 70,80 30,80 10,40" fill="rgba(0,0,0,0.5)"
+                        stroke="rgba(255,255,255,0.2)" />
+                    <path d="M50 50 L50 10 M50 50 L90 40 M50 50 L70 80 M50 50 L30 80 M50 50 L10 40"
+                        stroke="rgba(255,255,255,0.1)" />
+                    <!-- Data Shape -->
+                    <polygon points="50,15 80,45 65,75 35,70 20,45" fill="rgba(220,38,38,0.4)" stroke="#ef4444"
+                        stroke-width="2" />
+                    <text x="50" y="55" fill="white" font-size="8" text-anchor="middle" font-weight="bold"
+                        opacity="0.5">DEF</text>
+                </svg>
+            </div>
+
+            <!-- BOTTOM HUD (Dynamic Island) -->
+            <div class="hud-bottom">
+                <div class="dynamic-island">
+                    <div class="play-info">
+                        <span class="play-name" id="play-name">PA BOOT RIGHT</span>
+                        <div class="play-meta">
+                            <span class="wristband-code">BLUE 42</span>
+                            <span>• Success 78%</span>
+                        </div>
+                    </div>
+
+                    <div class="context-tabs">
+                        <button class="tab-btn active offense" data-view="offensive">OFFENSE</button>
+                        <button class="tab-btn" data-view="defensive">DEFENSE</button>
+                        <button class="tab-btn" data-view="personnel">PERSONNEL</button>
+                    </div>
+
+                    <div style="display:flex; gap:10px; align-items:center">
+                        <button class="hud-btn" id="voice-btn"><i data-lucide="mic" size="18"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CHALLENGE PANEL (Below Canvas) -->
+    <div class="challenge-panel">
+        <div class="challenge-left">
+            <!-- Video Placeholder -->
+            <div
+                style="width:100%; height:100%; background:repeating-linear-gradient(45deg, #1e293b, #1e293b 10px, #0f172a 10px, #0f172a 20px);">
+            </div>
+            <i data-lucide="play-circle" class="replay-icon" size="32"></i>
+        </div>
+        <div class="challenge-center">
+            <div class="challenge-title">Challenge Assistant • Spot of Ball</div>
+            <div class="challenge-decision">
+                <button class="decision-btn challenge">CHALLENGE</button>
+                <button class="decision-btn no">DO NOT CHALLENGE</button>
+            </div>
+        </div>
+        <div class="challenge-stats">
+            <div class="stat-row">
+                <span>Overturn Prob</span>
+                <span class="metric-val" style="color:var(--emerald-400)">84%</span>
+            </div>
+            <div class="confidence-bar">
+                <div class="confidence-fill" style="width:84%"></div>
+            </div>
+            <div class="stat-row" style="margin-top:8px">
+                <span>Timeout Cost</span>
+                <span class="metric-val" style="color:var(--red-600)">-1 TO</span>
+            </div>
+            <div class="stat-row">
+                <span>Exp Value</span>
+                <span class="metric-val">+2.4 pts</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIG DRAWER -->
+    <div class="config-drawer" id="config-drawer">
+        <div class="drawer-header">
+            <span>SETTINGS</span>
+            <i data-lucide="x" class="close-config" style="cursor:pointer" size="20"></i>
+        </div>
+        <div class="config-group">
+            <label>Offensive Formation</label>
+            <select id="formation-select">
+                <option value="shotgun">Shotgun</option>
+                <option value="empty">Empty</option>
+                <option value="iform">I-Form</option>
+                <option value="singleback">Singleback</option>
+            </select>
+        </div>
+        <div class="config-group">
+            <label>Risk Profile</label>
+            <select>
+                <option>Standard</option>
+                <option>Aggressive (Go for 4th)</option>
+                <option>Conservative</option>
+            </select>
+        </div>
+        <div class="config-group">
+            <label>Vision Sensitivity</label>
+            <input type="range" class="slider">
+        </div>
     </div>
 
     <script src="app.js"></script>
+    <script>lucide.createIcons();</script>
 </body>
+
 </html>
