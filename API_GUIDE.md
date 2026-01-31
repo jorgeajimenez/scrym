@@ -35,23 +35,27 @@ curl -X POST "http://localhost:8000/predict/offensive" -H "Content-Type: applica
 curl -X POST "http://localhost:8000/predict/defensive" -H "Content-Type: application/json" -d '{"down":3,"ydstogo":15,"yardline_100":60,"score_differential":0,"qtr":2,"game_seconds_remaining":1500,"posteam_timeouts_remaining":2,"defteam_timeouts_remaining":2,"red_zone":0,"goal_to_go":0,"two_min_drill":0}'
 ```
 
+### 🏟️ Personnel Optimizer
+**Scenario:** 1st & Goal. Heavy set recommendation.
+```bash
+curl -X POST "http://localhost:8000/predict/personnel" -H "Content-Type: application/json" -d '{"down":1,"ydstogo":2,"yardline_100":2,"score_differential":0,"qtr":4,"game_seconds_remaining":600,"posteam_timeouts_remaining":3,"defteam_timeouts_remaining":3,"red_zone":1,"goal_to_go":1}'
+```
+
+### ♟️ Formation Prediction
+**Scenario:** Visualizing a "Pass" play with "11" personnel.
+```bash
+curl -X POST "http://localhost:8000/predict/formation" -H "Content-Type: application/json" -d '{"play_type":"pass","personnel":"11","ydstogo":10}'
+```
+
 ---
 
 ## 3. Utility Endpoints
-
-### 🎮 Demo Scenarios
-**Get List of Quick Demos:**
-```bash
-curl -X GET "http://localhost:8000/demo/scenarios"
-```
-
-**Load Specific Demo (e.g., Aggressive Go):**
-```bash
-curl -X GET "http://localhost:8000/demo/load/scen_1"
-```
-
-### 🏥 Health Check
+...
+### 🏥 Health Check & Troubleshooting
 Verify the API is up and models are loaded:
 ```bash
 curl -X GET "http://localhost:8000/health"
 ```
+
+**If you see `{"status":"error"}`:**
+The response will include a `detail` field with a full Python traceback explaining why the models failed to load (e.g., missing `.pt` files or path errors).
