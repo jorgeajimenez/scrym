@@ -27,13 +27,14 @@
 
     <div class="container">
         <div class="header">
-            <h3>♟️ Formation Logic Tester</h3>
+            <h3>♟️ Formation Logic Tester (v2)</h3>
             <select id="scenarioSelect" onchange="loadScenario()">
                 <option value="">-- Select Scenario --</option>
-                <option value='{"play_type":"pass", "personnel":"11", "ydstogo":10, "is_2min":0}'>3rd & 10 (Standard Pass)</option>
-                <option value='{"play_type":"run", "personnel":"21", "ydstogo":1, "is_2min":0}'>4th & 1 (Power Run)</option>
-                <option value='{"play_type":"pass", "personnel":"10", "ydstogo":5, "is_2min":1}'>2-Min Drill (Empty Set)</option>
-                <option value='{"play_type":"run", "personnel":"11", "ydstogo":10, "is_2min":0}'>1st & 10 (Draw/Zone)</option>
+                <option value='{"play_type":"pass", "personnel":"11", "ydstogo":4, "is_2min":0}'>3rd & 4 (Bunch Logic)</option>
+                <option value='{"play_type":"pass", "personnel":"11", "ydstogo":10, "is_2min":0}'>3rd & 10 (Spread Logic)</option>
+                <option value='{"play_type":"run", "personnel":"21", "ydstogo":5, "is_2min":0}'>1st & 10 (Pistol Logic)</option>
+                <option value='{"play_type":"run", "personnel":"22", "ydstogo":1, "is_2min":0}'>Goal Line (Jumbo Logic)</option>
+                <option value='{"play_type":"pass", "personnel":"10", "ydstogo":15, "is_2min":1}'>2-Min Drill (Empty Set)</option>
             </select>
         </div>
 
@@ -47,7 +48,7 @@
             </div>
             <div class="field">
                 <label>Personnel</label>
-                <input type="text" id="personnel" value="11" placeholder="e.g. 11, 12, 21">
+                <input type="text" id="personnel" value="11" placeholder="e.g. 11, 12, 21, 22">
             </div>
             <div class="field">
                 <label>Yards to Go</label>
@@ -75,9 +76,12 @@
         // Mapped from backend/formation_logic.py
         const TEMPLATES = {
             "Shotgun Spread": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-5},{r:"RB",x:1.5,y:-5},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"WR",x:-15,y:0},{r:"TE",x:4.5,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
+            "Gun Bunch Right": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-5},{r:"RB",x:-1.5,y:-5},{r:"WR",x:-20,y:0},{r:"WR",x:12,y:0},{r:"WR",x:14,y:-1},{r:"TE",x:10,y:-1},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
             "I-Formation": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-1},{r:"FB",x:0,y:-4},{r:"RB",x:0,y:-7},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"TE",x:4.5,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
+            "Pistol Strong": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-4},{r:"RB",x:0,y:-7},{r:"TE",x:4.5,y:0},{r:"TE",x:-4.5,y:-1},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
             "Empty Set": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-5},{r:"WR",x:-22,y:0},{r:"WR",x:-16,y:0},{r:"WR",x:22,y:0},{r:"WR",x:16,y:0},{r:"WR",x:10,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
-            "Singleback Ace": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-1},{r:"RB",x:0,y:-6},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"TE",x:-4.5,y:0},{r:"TE",x:4.5,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}]
+            "Singleback Ace": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-1},{r:"RB",x:0,y:-6},{r:"WR",x:-20,y:0},{r:"WR",x:20,y:0},{r:"TE",x:-4.5,y:0},{r:"TE",x:4.5,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}],
+            "Goal Line Jumbo": [{r:"C",x:0,y:0},{r:"QB",x:0,y:-1},{r:"FB",x:0,y:-3},{r:"RB",x:0,y:-6},{r:"TE",x:-4.5,y:0},{r:"TE",x:4.5,y:0},{r:"TE",x:6,y:0},{r:"LT",x:-3,y:0},{r:"RT",x:3,y:0},{r:"LG",x:-1.5,y:0},{r:"RG",x:1.5,y:0}]
         };
 
         function loadScenario() {
@@ -97,14 +101,25 @@
             const togo = parseInt(document.getElementById('ydstogo').value);
             const is2m = parseInt(document.getElementById('is_2min').value);
 
-            // LOGIC (Mirrors formation_logic.py)
+            // INTELLIGENT LOGIC (Mirrors backend/formation_logic.py)
             let name = "Singleback Ace";
-            if (is2m === 1) name = "Empty Set";
-            else if (play === "run") {
-                if (["21","22","13"].includes(pers) && togo < 3) name = "I-Formation";
-                else name = "Singleback Ace";
+            
+            if (is2m === 1) {
+                name = "Empty Set";
+            } else if (togo <= 1 && ["22","23","13"].includes(pers)) {
+                name = "Goal Line Jumbo";
+            } else if (play === "run") {
+                if (["21","22","13"].includes(pers)) {
+                    // Short = Power, Med = Pistol
+                    name = (togo < 3) ? "I-Formation" : "Pistol Strong";
+                } else {
+                    name = "Singleback Ace";
+                }
             } else {
-                if (togo > 7) name = "Shotgun Spread";
+                // Pass Logic
+                if (togo >= 10) name = "Empty Set";
+                else if (togo > 6) name = "Shotgun Spread";
+                else if (togo >= 3) name = "Gun Bunch Right"; // Creating rub routes
                 else name = "Singleback Ace";
             }
 
@@ -124,6 +139,11 @@
             // Line of Scrimmage
             ctx.strokeStyle = "rgba(255,255,255,0.1)";
             ctx.beginPath(); ctx.moveTo(0,150); ctx.lineTo(600,150); ctx.stroke();
+
+            // Hash marks
+            ctx.fillStyle = "rgba(255,255,255,0.2)";
+            ctx.fillRect(200, 148, 4, 4);
+            ctx.fillRect(400, 148, 4, 4);
 
             players.forEach(p => {
                 const x = 300 + (p.x * 12);
