@@ -1,6 +1,6 @@
 # 🔌 API Integration Guide
 
-This document provides `curl` commands to test the FastAPI endpoints.
+This document provides `curl` commands to test the FastAPI endpoints with single-line JSON data.
 
 ## 1. Starting the Server
 Before running any commands, start the backend server:
@@ -20,62 +20,19 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ### 🏈 4th Down Decision (Head Coach)
 **Scenario:** 4th & 1 on the Opponent 45. Tie game.
 ```bash
-curl -X POST "http://localhost:8000/predict/fourth-down" \
-     -H "Content-Type: application/json" \
-     -d 
-{
-           "down": 4,
-           "ydstogo": 1,
-           "yardline_100": 45,
-           "score_differential": 0,
-           "qtr": 3,
-           "game_seconds_remaining": 900,
-           "posteam_timeouts_remaining": 3,
-           "defteam_timeouts_remaining": 3
-         }
+curl -X POST "http://localhost:8000/predict/fourth-down" -H "Content-Type: application/json" -d '{"down":4,"ydstogo":1,"yardline_100":45,"score_differential":0,"qtr":3,"game_seconds_remaining":900,"posteam_timeouts_remaining":3,"defteam_timeouts_remaining":3}'
 ```
 
 ### 📋 Offensive Play Call (Offensive Coord)
 **Scenario:** 1st & 10 on Own 20. Down by 7.
 ```bash
-curl -X POST "http://localhost:8000/predict/offensive" \
-     -H "Content-Type: application/json" \
-     -d 
-{
-           "down": 1,
-           "ydstogo": 10,
-           "yardline_100": 80,
-           "score_differential": -7,
-           "qtr": 1,
-           "game_seconds_remaining": 3000,
-           "posteam_timeouts_remaining": 3,
-           "defteam_timeouts_remaining": 3,
-           "half_seconds_remaining": 1800,
-           "red_zone": 0,
-           "goal_to_go": 0,
-           "two_min_drill": 0
-         }
+curl -X POST "http://localhost:8000/predict/offensive" -H "Content-Type: application/json" -d '{"down":1,"ydstogo":10,"yardline_100":80,"score_differential":-7,"qtr":1,"game_seconds_remaining":3000,"posteam_timeouts_remaining":3,"defteam_timeouts_remaining":3,"half_seconds_remaining":1800,"red_zone":0,"goal_to_go":0,"two_min_drill":0}'
 ```
 
 ### 🛡️ Defensive Tendency (Defensive Coord)
 **Scenario:** 3rd & 15. Likely Pass situation.
 ```bash
-curl -X POST "http://localhost:8000/predict/defensive" \
-     -H "Content-Type: application/json" \
-     -d 
-{
-           "down": 3,
-           "ydstogo": 15,
-           "yardline_100": 60,
-           "score_differential": 0,
-           "qtr": 2,
-           "game_seconds_remaining": 1500,
-           "posteam_timeouts_remaining": 2,
-           "defteam_timeouts_remaining": 2,
-           "red_zone": 0,
-           "goal_to_go": 0,
-           "two_min_drill": 0
-         }
+curl -X POST "http://localhost:8000/predict/defensive" -H "Content-Type: application/json" -d '{"down":3,"ydstogo":15,"yardline_100":60,"score_differential":0,"qtr":2,"game_seconds_remaining":1500,"posteam_timeouts_remaining":2,"defteam_timeouts_remaining":2,"red_zone":0,"goal_to_go":0,"two_min_drill":0}'
 ```
 
 ---
@@ -97,6 +54,4 @@ curl -X GET "http://localhost:8000/demo/load/scen_1"
 Verify the API is up and models are loaded:
 ```bash
 curl -X GET "http://localhost:8000/health"
-```
-
 ```
