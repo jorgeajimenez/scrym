@@ -1,210 +1,164 @@
-# 🔗 Frontend-Backend Integration Guide: The "Nerve Center"
+# 🔗 Frontend-Backend Integration Guide: The "Nerve Center" (v2.0)
 
-This document is **THE AUTHORITY** on how the `Next.js` frontend stitches together with the `FastAPI` backend. It goes beyond simple API contracts—it defines the *soul* of the application: the rhythm, the tension, and the flow of a live NFL game.
-
-**Reference Documents:**
-*   `API_GUIDE.md` (Endpoints)
-*   `MODELS_AND_UX.md` (UI/Model Mapping)
-*   `GAME_CLOCK.md` (Simulation State)
-*   `FORMATION_GENERATION.md` (Visuals Logic)
+This document is **THE AUTHORITY** for connecting the Next.js Frontend to the FastAPI Backend. It is designed for a seamless "Copy-Paste" integration experience.
 
 ---
 
-## 1. System Philosophy: "The Coach's Headset"
+## 1. The Contract: Exact TypeScript Interfaces
 
-The application is not just a dashboard; it is a **Headset**. It needs to feel immediate, authoritative, and responsive.
-
-*   **Frontend (The Headset):**
-    *   **Role:** Presentation & Tension.
-    *   **Feel:** Slick, dark-mode, high-contrast (think NFL on Fox graphics).
-    *   **Responsibility:** It *never* waits. The clock ticks, the crowd noise (visual) swells. It demands data from the backend but handles the "waiting" gracefully with pulsing skeletons and animations.
-*   **Backend (The Coordinator):**
-    *   **Role:** The Brain.
-    *   **Responsibility:** Pure logic. It doesn't care about pixels. It cares about probability. It provides the "Source of Truth" for the game state.
-
----
-
-## 2. Shared Data Models (The Contract)
-
-To ensure type safety, the Frontend **TypeScript interfaces** must match the Backend **Pydantic models**.
-
-### Core `GameState` Object
-This object is the "Batton" passed back and forth. It *must* be consistent.
+These interfaces match the Backend's JSON responses exactly. **Copy this into `frontend/types/api.ts`.**
 
 ```typescript
-// frontend/types/index.ts
+// frontend/types/api.ts
 
-export interface GameState {
-  game_id: string;
-  // Context
-  qtr: number; // 1-4, 5 (OT)
-  time_remaining: number; // Seconds (e.g., 900 for 15:00)
-  play_clock: number; // Seconds (e.g., 40 or 25)
-  clock_running: boolean; // Is the game clock currently ticking?
-  score_home: number;
-  score_away: number;
-  possession: 'home' | 'away';
-  
-  // Field State
-  down: number; // 1-4
-  ydstogo: number; // Distance to 1st down
-  yardline_100: number; // 0-100 (100 = Own Endzone, 0 = Opponent Endzone)
-  
-  // Logic Flags
-  red_zone: boolean; // Calculated property (yardline_100 <= 20)
-  goal_to_go: boolean;
-  two_min_drill: boolean; // Calculated (time < 120 && qtrIsEnd)
-  
-  // Timeouts
-  timeouts_home: number;
-  timeouts_away: number;
-}
-```
-
-### Response Interfaces
-
-**1. Fourth Down Prediction (`/predict/fourth-down`)**
-```typescript
 export interface FourthDownResponse {
-  recommendation: 'GO' | 'PUNT' | 'FG';
-  conversion_probability: number;
-  fg_probability: number;
+  recommendation: 'GO' | 'PUNT/KICK';
+  conversion_probability: number; // 0.0 - 1.0
+  fg_probability: number;         // 0.0 - 1.0
   expected_epa: number;
-  win_probability: number;
+  win_probability: number;        // 0.0 - 1.0
 }
-```
 
-**2. Offensive Prediction (`/predict/offensive`)**
-```typescript
 export interface OffensiveResponse {
-  recommendation: string; // "Pass", "Run"
-  probabilities: Record<string, number>; // { "Pass": 0.6, "Run": 0.4 }
-  // + Formation Data via separate call
+  recommendation: string;         // e.g., "Pass"
+  probabilities: Record<string, number>; // e.g. { "Pass": 0.65, "Run": 0.35 }
+}
+
+export interface DefensiveResponse {
+  recommendation: 'Pass Defense' | 'Run Defense';
+  pass_probability: number;       // 0.0 - 1.0
+}
+
+export interface PersonnelResponse {
+  recommendation: string;         // e.g., "11", "22"
+  probabilities: Record<string, number>;
+}
+
+export interface FormationResponse {
+  formation_name: string;         // e.g., "Shotgun Spread"
+  players: Array<{
+    role: string;                 // "QB", "WR", etc.
+    x: number;                    // -25 to 25 (Horizontal)
+    y: number;                    // Negative = Offense, Positive = Defense
+    color: string;                // "blue" or "red"
+  }>;
+}
+
+export interface AnalysisResponse {
+  analysis: string;               // The Gemini "Coach's Note" text
 }
 ```
 
 ---
 
-## 3. The Heartbeat: Real-Time Clock Synchronization
+## 2. The Bridge: Ready-to-Use API Client
 
-To make the UI feel "live," the Game Clock and Play Clock must tick down in the UI while remaining synchronized with the Backend's simulation logic. **This is the most critical UX element.**
+**Copy this into `frontend/lib/api.ts`.** It handles the endpoints and the necessary data transformations (like sorting the offensive plays).
 
-### ⏳ The Two-Clock System
-1.  **Game Clock:** 15:00 per quarter. The overarching constraint.
-2.  **Play Clock:** 40s. The immediate panic.
+```typescript
+// frontend/lib/api.ts
+import { GameState } from '@/types'; // Your local state type
+import { 
+  FourthDownResponse, OffensiveResponse, DefensiveResponse, 
+  FormationResponse, PersonnelResponse, AnalysisResponse 
+} from '@/types/api';
 
-### 🔄 Synchronization Strategy (The "Rubber Band" Method)
-*   **The Ticking Logic (Frontend):** 
-    *   The Frontend uses a `useEffect` interval (every 1s) to decrement `time_remaining` and `play_clock` *locally*.
-    *   *UX Note:* Use a monospace font for the digits. They should not "jump" around.
-*   **The Source of Truth (Backend):**
-    *   When a play is simulated (`/simulate/step`), the Backend calculates the *exact* result (e.g., "Run play took 6 seconds, plus 34 seconds runoff = 40s elapsed").
-    *   The Frontend then **"snaps"** its local clock to the Backend's returned `time_remaining`.
-    *   *Dev Aside:* If the UI clock drifts by 1-2 seconds, that's fine. If it drifts by 10s, the snap will look glitchy. Keep the local tick accurate.
+const API_BASE = 'http://localhost:8000';
 
-### 🛑 Clock Stoppage Rules (Backend Logic)
-The Backend must set `clock_running: false` if:
-*   Incomplete Pass.
-*   Out of Bounds.
-*   Timeout.
-*   Possession Change.
-*   Penalty.
-
----
-
-## 4. Feature Integration: "The Movie Script"
-
-### 🚦 Feature A: Head Coach "Traffic Light" (The Climax)
-**The Vibe:** It's 4th & 1. The stadium is shaking. You have 3 seconds to decide.
-**Integration Logic:**
-1.  **Trigger:** Frontend detects `GameState.down === 4`.
-2.  **Action:** Async call to `POST /predict/fourth-down`.
-3.  **Loading State:** Do **NOT** just show a spinner. Show a "CALCULATING..." text that flashes red/yellow/green rapidly, building tension.
-4.  **The Reveal:** 
-    *   The result (e.g., **"GO FOR IT"**) slams onto the screen.
-    *   Confidence meter fills up.
-
-### 📋 Feature B: Offensive Coordinator "Play Menu" (The Rhythm)
-**The Vibe:** Rapid-fire calling. Read the defense, pick a card.
-**Integration Logic:**
-1.  **Trigger:** Immediately after a play ends.
-2.  **Action:** Async call to `POST /predict/offensive`.
-3.  **Formation Logic:** Call `POST /predict/formation` with the recommended play.
-4.  **Render:** 
-    *   **The Cards:** Three large clickable cards. The "Best" play is largest.
-    *   **Visual:** Draw the formation (dots) on a mini-field using the returned coordinates.
-
-### 🛡️ Feature C: Defensive Coordinator "Radar" (The Paranoia)
-**The Vibe:** They are up to something. What is it?
-**Integration Logic:**
-1.  **Trigger:** Pre-snap.
-2.  **Action:** Async call to `POST /predict/defensive`.
-3.  **Render:** 
-    *   **The Gauge:** A needle wobbling between "RUN" and "PASS". It shouldn't be perfectly still; add some CSS jitter to mimic uncertainty.
-    *   **The Alarm:** If `pass_probability > 80%`, flash a "BLITZ ALERT" badge.
-
-### 🧠 Feature D: Gemini Assistant Coach (The Wisdom)
-**The Vibe:** A veteran coach whispering in your ear, reviewing the AI's logic.
-**Integration Logic:**
-1.  **Trigger:** After a predictive model returns a result (e.g., "GO" or "PASS").
-2.  **Action:** Call `POST /analyze/play`.
-3.  **Parallel Pattern:** 
-    *   Call the Predictive Model and Gemini **simultaneously**. 
-    *   The Predictive Model result is the **Primary Trigger** (shows the Green Light instantly).
-    *   The Gemini response follows shortly after (e.g., +1s delay) as a **"Coach's Note"** or notification bubble.
-4.  **Content:** This adds roster awareness (e.g., "Mahomes is in the rhythm, trust the pass") that the raw weights lack.
-
----
-
-## 5. Simulation Mode: "Ghost in the Machine"
-
-This allows the AI to play against itself, essential for demos.
-
-### New API Endpoint: `POST /simulate/step`
-**Request:**
-```json
-{
-  "current_state": { ...GameState... },
-  "action_taken": "Pass" 
+async function post<T>(endpoint: string, body: any): Promise<T> {
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API Error: ${res.statusText}`);
+  return res.json();
 }
+
+export const api = {
+  // 1. Head Coach (Traffic Light)
+  predictFourthDown: (state: GameState) => 
+    post<FourthDownResponse>('/predict/fourth-down', state),
+
+  // 2. Offensive Coord (Play Menu)
+  predictOffense: async (state: GameState) => {
+    const data = await post<OffensiveResponse>('/predict/offensive', state);
+    // Transform dict to sorted array for UI
+    const sorted = Object.entries(data.probabilities)
+      .map(([name, prob]) => ({ name, prob }))
+      .sort((a, b) => b.prob - a.prob);
+    return { ...data, sortedPredictions: sorted };
+  },
+
+  // 3. Defensive Coord (Radar)
+  predictDefense: (state: GameState) => 
+    post<DefensiveResponse>('/predict/defensive', state),
+
+  // 4. Visuals (Formation)
+  getFormation: (playType: string, personnel: string, ydstogo: number) => 
+    post<FormationResponse>('/predict/formation', { 
+      play_type: playType, personnel, ydstogo 
+    }),
+
+  // 5. Assistant Coach (Gemini)
+  analyzePlay: (state: GameState, recommendation: string) => 
+    post<AnalysisResponse>('/analyze/play', { 
+      state, recommendation, team_abbr: "KC" 
+    })
+};
 ```
 
-**Response:**
-```json
-{
-  "new_state": { ...GameState... }, // Updated time, score, etc.
-  "play_result": {
-    "yards_gained": 12,
-    "description": "Pass complete to J.Jefferson for 12 yards.",
-    "is_turnover": false,
-    "clock_impact": "running"
-  }
-}
+---
+
+## 3. Integration Patterns (The "How-To")
+
+### A. The "Parallel Load" Pattern
+*   **Problem:** We want instant numbers (PyTorch) but also smart text (Gemini).
+*   **Solution:** Fire both requests at once. Do not await Gemini to show the Green Light.
+
+```typescript
+// In your Component
+const handlePrediction = async () => {
+  setLoading(true);
+  
+  // 1. Fire Critical Path (Math)
+  const mathPromise = api.predictFourthDown(gameState);
+  
+  // 2. Fire Secondary Path (Context) - Don't await yet!
+  const textPromise = api.analyzePlay(gameState, "Analyzing...");
+
+  // 3. Show Math ASAP
+  const result = await mathPromise;
+  setResult(result); // UI turns Green/Red immediately
+  setLoading(false);
+
+  // 4. Show Text when ready
+  const analysis = await textPromise;
+  setCoachNote(analysis.analysis); // Pop-up appears 1-2s later
+};
 ```
 
-### The "Auto-Sim" Loop (Frontend)
-When the user toggles **[AUTO-SIM]**:
-1.  **Frontend:** "Taking control..."
-2.  **Loop:**
-    *   Get `GameState`.
-    *   Call AI (OC/HC) -> Get Top Recommendation (e.g., "Pass").
-    *   **Visual:** Highlight the "Pass" card as if a ghost clicked it.
-    *   Send "Pass" to `/simulate/step`.
-    *   **Visual:** Show text "Result: 12 Yard Gain".
-    *   **Wait:** 2000ms (Let the user read).
-    *   **Reset:** Reset Play Clock to 40.
-    *   **Repeat.**
+### B. The "Formation Chaining" Pattern
+*   **Context:** The Offensive Model gives us a play ("Pass"), but we need to show dots on a field.
+*   **Logic:**
+    1.  Call `predictOffense`.
+    2.  Get the top recommendation (e.g., "Pass").
+    3.  *Then* call `getFormation("Pass", currentPersonnel, distance)`.
+    4.  Render the canvas.
+
+### C. Clock Synchronization ("The Heartbeat")
+The frontend runs a `setInterval` every 1000ms to tick the clock.
+*   **IF** `clock_running === true`: Decrement `time_remaining`.
+*   **IF** `time_remaining === 0`: End Quarter.
+*   **Important:** This is purely visual. The Backend is the source of truth for the *actual* game time during simulations.
 
 ---
 
-## 6. Development Checklist
+## 4. Troubleshooting for Frontend Devs
 
-### Backend Tasks
-- [x] **Standardize Models:** Ensure `main.py` matches `GameState` exactly.
-- [ ] **Implement Clock Logic:** In `simulate/step`, precise time math is key.
-- [x] **Formation Logic:** Implement the "Logic Matrix" from `FORMATION_GENERATION.md`.
-
-### Frontend Tasks
-- [ ] **Clock Hook:** `useGameClock()` - The heartbeat.
-- [ ] **State Provider:** `GameContext.tsx` - The single source of truth.
-- [ ] **Visuals:** Implement the "Jitter" on the radar and the "Slam" on the 4th down decision.
+*   **Error:** `{"detail":"Models not loaded"}`
+    *   **Fix:** The backend hasn't been trained. Tell the backend engineer to run `python backend/train.py`.
+*   **Error:** `Connection Refused`
+    *   **Fix:** Ensure `uvicorn` is running on port 8000.
+*   **Visual:** "The formation dots look weird."
+    *   **Fix:** Remember `y` coordinates: Negative is Offense (bottom), Positive is Defense (top). Origin `(0,0)` is the ball.
