@@ -13,6 +13,7 @@ from pathlib import Path
 
 from models import FourthDownDecisionModel, WinProbabilityModel
 from feature_engineering import NFLFeatureEngineer
+from demo_scenarios import get_demo_scenarios, get_scenario_by_id
 
 app = FastAPI(title="NFL AI Coach API")
 
@@ -46,23 +47,39 @@ class GameState(BaseModel):
 def load_artifacts():
     try:
         # Load Scalers
-        scalers['all'] = joblib.load(DATA_DIR / "scalers.pkl")
+        if (DATA_DIR / "scalers.pkl").exists():
+            scalers['all'] = joblib.load(DATA_DIR / "scalers.pkl")
         
         # Load 4th Down Model
-        fd_model = FourthDownDecisionModel(input_dim=6)
-        fd_model.load_state_dict(torch.load(MODEL_DIR / "fourth_down_model.pt", map_location='cpu'))
-        fd_model.eval()
-        models['fourth_down'] = fd_model
+        if (MODEL_DIR / "fourth_down_model.pt").exists():
+            fd_model = FourthDownDecisionModel(input_dim=6)
+            fd_model.load_state_dict(torch.load(MODEL_DIR / "fourth_down_model.pt", map_location='cpu'))
+            fd_model.eval()
+            models['fourth_down'] = fd_model
         
         # Load Win Prob Model
-        wp_model = WinProbabilityModel(input_dim=8)
-        wp_model.load_state_dict(torch.load(MODEL_DIR / "win_prob_model.pt", map_location='cpu'))
-        wp_model.eval()
-        models['win_prob'] = wp_model
+        if (MODEL_DIR / "win_prob_model.pt").exists():
+            wp_model = WinProbabilityModel(input_dim=8)
+            wp_model.load_state_dict(torch.load(MODEL_DIR / "win_prob_model.pt", map_location='cpu'))
+            wp_model.eval()
+            models['win_prob'] = wp_model
         
-        print("✅ API Artifacts Loaded Successfully")
+        print(f"✅ API Artifacts Loaded: {list(models.keys())}")
     except Exception as e:
         print(f"⚠️ Warning: Could not load models. Ensure training is complete. Error: {e}")
+
+@app.get("/demo/scenarios")
+def list_demo_scenarios():
+    """Return list of curated demo scenarios"""
+    return get_demo_scenarios()
+
+@app.get("/demo/load/{scenario_id}")
+def load_demo_scenario(scenario_id: str):
+    """Return the game state for a specific scenario"""
+    scenario = get_scenario_by_id(scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return scenario
 
 @app.post("/predict/fourth-down")
 async def predict_fourth_down(state: GameState):
