@@ -1,13 +1,13 @@
 # 🔌 API Integration Guide
 
-This document provides `curl` commands to test the FastAPI endpoints exactly as the Next.js frontend will call them.
+This document provides `curl` commands to test the FastAPI endpoints.
 
 ## 1. Starting the Server
 Before running any commands, start the backend server:
 
 ```bash
 # Activate virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Run the server
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
@@ -78,6 +78,10 @@ curl -X POST "http://localhost:8000/predict/defensive" \
          }
 ```
 
+---
+
+## 3. Utility Endpoints
+
 ### 🎮 Demo Scenarios
 **Get List of Quick Demos:**
 ```bash
@@ -89,9 +93,7 @@ curl -X GET "http://localhost:8000/demo/scenarios"
 curl -X GET "http://localhost:8000/demo/load/scen_1"
 ```
 
----
-
-## 3. Health Check
+### 🏥 Health Check
 Verify the API is up and models are loaded:
 ```bash
 curl -X GET "http://localhost:8000/health"
