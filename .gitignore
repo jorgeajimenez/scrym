@@ -68,3 +68,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Data (Heavy)
+data

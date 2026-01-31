@@ -62,9 +62,34 @@ class NFLDataLoader:
         print("Initializing Intelligence Data Pipeline...")
         data = {
             'pbp': self.load_play_by_play(force_reload=force_reload),
-            'ftn': self.load_ftn_charting(force_reload=force_reload)
+            'ftn': self.load_ftn_charting(force_reload=force_reload),
+            'rosters': self.load_rosters(force_reload=force_reload)
         }
         return data
+
+    def get_team_starters(self, team_abbr, year=2024):
+        """
+        Get key offensive starters for a team/year to provide context to Gemini.
+        """
+        try:
+            rosters = self.load_rosters(years=[year])
+            # Filter for team
+            team_roster = rosters[rosters['team'] == team_abbr]
+            
+            # Simple heuristic for "Key Players" if depth chart data is missing
+            # In a real app, we'd use 'depth_chart_position' == 1
+            # Here we just grab the first player of each key position
+            key_positions = ['QB', 'RB', 'WR', 'TE']
+            starters = {}
+            
+            for pos in key_positions:
+                players = team_roster[team_roster['position'] == pos]['player_name'].head(2).tolist()
+                starters[pos] = players
+                
+            return starters
+        except Exception as e:
+            print(f"Warning: Could not load roster context: {e}")
+            return {}
 
 if __name__ == "__main__":
     loader = NFLDataLoader()
