@@ -44,6 +44,15 @@ This document explains how the 5 Neural Networks in the backend map directly to 
 *   **UI Mapping:**
     *   **Alert Icon:** "⚠️ Rec: 12 Personnel" pops up if the current personnel doesn't match the optimal one.
 
+### 🏈 Suggesting Formations (Strategic Look)
+While personnel defines *who* is on the field, **Formations** define *where* they stand.
+*   **Offensive Formation (OC):** 
+    *   *Mechanism:* The Offensive Model can be extended to suggest "Shotgun" vs. "Under Center" based on the `two_min_drill` or `ydstogo` features.
+    *   *UI:* Displays a small icon next to the Play Card indicating the suggested formation.
+*   **Defensive Formation (DC):**
+    *   *Mechanism:* Predicted by the Defensive Model. If the predicted `is_pass_prob` is high, the system suggests moving from **Base** (4-3/3-4) to **Nickel** (5 DBs) or **Dime** (6 DBs).
+    *   *UI:* The "Radar" view explicitly labels the recommendation: **"MATCH: NICKEL"**.
+
 ---
 
 ## 3. The "Radar" (Defensive Coordinator View)
