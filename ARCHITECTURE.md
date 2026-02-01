@@ -1,63 +1,57 @@
-# 🏗 NFL AI Coach: System Architecture
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#1e293b', 'primaryTextColor': '#ffffff', 'lineColor': '#475569', 'secondaryColor': '#0f172a'}}}%%
+graph TD
+    subgraph " "
+        direction LR
+        subgraph "USER INPUT"
+            A["Game Simulation Controls<br><span class='subtitle'>(Down, Yards, Qtr, Time)</span>"]
+        end
 
-This document outlines the technical architecture for the "Playbook" system, derived from the core architectural patterns.
+        subgraph "STATE & LOGIC (Dashboard.tsx)"
+            C["<b>gameState</b> (React State)<br><span class='subtitle'>The current game situation.</span>"]
+            
+            subgraph "🧠 PREDICTION ENGINE"
+                D["<b class='fn'>getRecommendation(gameState)</b><br><span class='subtitle'>Pure function that evaluates the situation.</span>"]
+            end
 
-## 1. Data Layer
-The foundation of the system is the retrieval and caching of historical NFL data.
+            E["<b>Recommendation Object</b><br><span class='subtitle'>{ plays, recommendedPlay, sidebarData }</span>"]
+        end
+        
+        A -- " onChange triggers" --> C
+        C -- " is passed as argument" --> D
+        D -- " returns" --> E
+    end
 
-*   **Primary Source:** `nflfastR` / `nfl_data_py` (Play-by-Play Data 2018-2024).
-*   **Secondary Sources:**
-    *   FTN Charting Data (2022-2024) for advanced metrics.
-    *   Roster Data (2022-2024) for player matching.
-    *   *Future:* ESPN Live API for real-time game state.
-*   **Storage Strategy:** Local Parquet files cached in `data/`.
-    *   `pbp_2018_2024.parquet` (~128MB)
-    *   `ftn_2022_2024.parquet` (~2MB)
+    subgraph "UI COMPONENTS"
+        F["<b>FootballField.tsx</b><br><span class='subtitle'>Renders player X/Y coordinates.</span>"]
+        G["<b>RightSidebar.tsx</b><br><span class='subtitle'>Displays model output & rationale.</span>"]
+    end
 
-## 2. Data Processing Pipeline
-Raw data is transformed into model-ready tensors through a strict pipeline.
+    E -- " provides 'plays' and 'formations'" --> F
+    E -- " provides 'plays', 'sidebarData', etc." --> G
 
-*   **`NFLDataLoader`**: Abstraction layer for fetching/caching data.
-*   **`NFLFeatureEngineer`**: Logic for extracting situational features.
-*   **Feature Scaling**: `StandardScaler` applied to continuous variables (saved as `scalers.pkl`).
-*   **Encoding**: `LabelEncoder` for categorical inputs (teams, personnel).
-
-## 3. Intelligence Layer (PyTorch Models)
-The brain of the system consists of specialized neural networks. **For the 4th Down Bot, we focus on Models 3 & 4.**
-
-### Model 3: 4th Down Decision Engine
-*   **Goal:** Optimize 4th down strategy (Go, Punt, FG).
-*   **Input:** 6 Features (Down, Distance, Yardline, Score Diff, Time, Timeouts).
-*   **Architecture:**
-    *   `FC(64) + BN + ReLU + Dropout`
-    *   `FC(32) + BN + ReLU`
-    *   **3 Output Heads:**
-        1.  Conversion Probability (Sigmoid)
-        2.  FG Success Probability (Sigmoid)
-        3.  Expected EPA (Linear)
-
-### Model 4: Win Probability Calculator
-*   **Goal:** Contextualize decisions with game-winning chances.
-*   **Input:** 8 Features (Score Diff, Time, Field Pos, Down, Distance, Timeouts x2).
-*   **Architecture:** Deep 5-Layer Network.
-    *   `128 -> 64 -> 32 -> 16 -> 1`
-*   **Output:** Single probability (0-1) representing the possession team's chance to win.
-
-## 4. Backend Service (FastAPI)
-The bridge between the Intelligence Layer and the UI.
-
-*   **Framework:** FastAPI (Python 3.11).
-*   **Endpoints:**
-    *   `POST /predict/fourth-down`: Returns recommendation + probabilities.
-    *   `POST /predict/win-probability`: Returns current WP.
-    *   *(Future)* `POST /predict/offensive`, `POST /predict/defensive`.
-*   **Latency Target:** < 50ms inference time per request.
-
-## 5. Validation & Testing
-*   **`train.py`**: Training pipeline with Adam optimizer and ReduceLROnPlateau.
-*   **`test_models.py`**: Unit tests for model architecture dimensions.
-*   **`validate_historical.py`**: Backtesting against known NFL game outcomes.
-
----
-**Data Flow Summary:**
-Raw Data → `NFLDataLoader` → Parquet → `FeatureEngineer` → Scaled Features → **PyTorch Models** → FastAPI → JSON Response.
+    %% Styling
+    classDef default fill:#0f172a,stroke:#334155,stroke-width:2px,color:#94a3b8;
+    classDef fn fill:#9333ea,stroke:#c084fc,color:white;
+    classDef state fill:#1e293b,stroke:#2563eb,stroke-width:2px,color:white;
+    classDef ui fill:#1e293b,stroke:#34d399,stroke-width:2px,color:white;
+    class A state;
+    class C state;
+    class E state;
+    class D fn;
+    class F,G ui;
+    linkStyle 0 stroke:#fbbf24,stroke-width:2px;
+    linkStyle 1 stroke:#fbbf24,stroke-width:2px;
+    linkStyle 2 stroke:#fbbf24,stroke-width:2px;
+    linkStyle 3 stroke:#34d399,stroke-width:2px;
+    linkStyle 4 stroke:#34d399,stroke-width:2px;
+```
+<style>
+.subtitle {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.fn {
+    font-family: monospace;
+}
+</style>

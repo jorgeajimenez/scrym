@@ -33,5 +33,10 @@ Detailed setup instructions will be provided as implementation progresses.
 -   **New Work Only**: All core logic is being re-implemented from scratch.
 -   **Open Source**: This project is intended for open-source distribution.
 
+## 🏛️ Architecture
+The frontend is a fully reactive, single-page application built with Next.js and React. All logic is contained within the `Dashboard` component, which uses a recommendation engine to dynamically update the UI based on the simulated game state.
+
+![Frontend Architecture](frontend_architecture.svg)
+
 ---
 Built for the **Gemini 3 SuperHack 2026**.
