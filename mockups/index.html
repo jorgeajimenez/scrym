@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFL AI Coach - Ultimate</title>
-    <link rel="stylesheet" href="style.css">
+    <title>SCRYM - NFL AI Coach</title>
+    <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -21,10 +21,18 @@
 
             <!-- TOP BAR -->
             <div class="hud-top">
+                <!-- SCRYM Branding -->
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="background:linear-gradient(135deg, #9333ea 0%, #3b82f6 100%); padding:8px 16px; border-radius:8px; box-shadow:0 0 20px rgba(147,51,234,0.4);">
+                        <span style="font-size:1.2rem; font-weight:900; letter-spacing:2px; background:linear-gradient(to right, #fff, #e9d5ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">SCRYM</span>
+                    </div>
+                    <div style="font-size:0.65rem; color:var(--purple-600); font-weight:700; text-transform:uppercase; letter-spacing:1px;">AI Coach</div>
+                </div>
+
                 <div class="score-pill">
-                    <span style="color:var(--blue-600)">KC 24</span>
+                    <span style="color:#002244; font-weight:800;">NE 28</span>
                     <div class="score-divider"></div>
-                    <span style="color:var(--red-600)">BUF 21</span>
+                    <span style="color:#002244; font-weight:600; opacity:0.7;">SEA 21</span>
                     <div class="score-divider"></div>
                     <span class="clock-display" id="game-clock">08:45</span>
                     <span style="font-size:0.7rem; color:var(--slate-400); margin-left:0.5rem">Q3</span>
@@ -33,18 +41,22 @@
                 <!-- Win Prob Gauge V2 -->
                 <div class="win-prob-widget">
                     <div style="font-size:0.6rem; color:var(--slate-400); letter-spacing:1px; text-transform:uppercase">
-                        Win Probability</div>
-                    <div class="prob-main" style="color:var(--white)">67%</div>
+                        Win Probability • NE</div>
+                    <div class="prob-main" style="color:#C60C30">73%</div>
                     <div class="prob-bar">
-                        <div class="prob-fill" style="width:67%"></div>
+                        <div class="prob-fill" style="width:73%; background:#C60C30;"></div>
                     </div>
                     <div class="prob-stats">
-                        <span>MOMENTUM: +2.4</span>
-                        <span>COMEBACK: 12%</span>
+                        <span style="color:#10b981;">MOMENTUM: +3.2</span>
+                        <span style="color:var(--slate-400);">SEA COMEBACK: 8%</span>
                     </div>
                 </div>
 
                 <div class="hud-controls">
+                    <div class="vision-status" style="display:flex; flex-direction:column; align-items:flex-end; gap:2px; padding:0 10px; border-left:1px solid rgba(255,255,255,0.1)">
+                        <span style="font-size:0.6rem; color:var(--slate-400)">VISION</span>
+                        <span id="vision-status" style="font-size:0.7rem; font-weight:600; color:#ef4444">OFFLINE</span>
+                    </div>
                     <button class="hud-btn" id="config-toggle"><i data-lucide="settings-2" size="18"></i></button>
                     <button class="hud-btn" id="vision-toggle"><i data-lucide="eye" size="18"></i></button>
                     <button class="hud-btn" style="position:relative">
@@ -54,40 +66,110 @@
                 </div>
             </div>
 
-            <!-- DECISION WIDGET (Left Floating) -->
-            <div class="decision-card" id="decision-widget">
-                <div class="decision-header">
-                    <span>4th Down Decision</span>
-                    <span class="risk-tag">RISK: LOW</span>
+            <!-- VIDEO PREVIEW (Top Left) -->
+            <div style="position:absolute; top:100px; left:20px; width:280px; background:rgba(0,0,0,0.8); border-radius:12px; padding:12px; border:1px solid rgba(147,51,234,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:0.7rem; color:#9333ea; font-weight:700; text-transform:uppercase; letter-spacing:1px;">
+                        🎥 Vision Agent Input
+                    </span>
+                    <span id="stream-fps" style="font-size:0.65rem; color:#10b981; font-weight:600;">30 FPS</span>
                 </div>
-                <div class="recommendation-badge">GO FOR IT</div>
-                <div class="metric-row">
-                    <span>Conversion Prob</span>
-                    <span class="metric-val" style="color:var(--emerald-400)">68%</span>
+                <div class="shimmer" style="width:100%; height:140px; background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius:8px; position:relative; overflow:hidden; border:2px solid #9333ea; box-shadow: 0 0 20px rgba(147,51,234,0.3);">
+                    <!-- Simulated video feed with grid overlay -->
+                    <div style="position:absolute; inset:0; background:repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(147,51,234,0.1) 20px, rgba(147,51,234,0.1) 22px), repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(147,51,234,0.1) 20px, rgba(147,51,234,0.1) 22px);"></div>
+                    <!-- Player tracking boxes simulation -->
+                    <div id="tracking-boxes" style="position:absolute; inset:0;">
+                        <div style="position:absolute; left:20%; top:60%; width:15px; height:15px; border:2px solid #3b82f6; border-radius:3px;"></div>
+                        <div style="position:absolute; left:50%; top:65%; width:15px; height:15px; border:2px solid #3b82f6; border-radius:3px;"></div>
+                        <div style="position:absolute; left:75%; top:58%; width:15px; height:15px; border:2px solid #3b82f6; border-radius:3px;"></div>
+                        <div style="position:absolute; left:35%; top:40%; width:15px; height:15px; border:2px solid #ef4444; border-radius:3px;"></div>
+                        <div style="position:absolute; left:60%; top:35%; width:15px; height:15px; border:2px solid #ef4444; border-radius:3px;"></div>
+                    </div>
+                    <div style="position:absolute; bottom:5px; left:5px; font-size:0.55rem; color:rgba(255,255,255,0.6); font-family:monospace;">YOLO v8 Pose Detection</div>
+                    <div class="pulse" style="position:absolute; top:5px; right:5px; background:rgba(239,68,68,0.9); padding:2px 6px; border-radius:4px; font-size:0.55rem; color:white; font-weight:600; box-shadow: 0 0 10px rgba(239,68,68,0.5);">🔴 LIVE</div>
                 </div>
-                <div class="metric-row">
-                    <span>Exp Points (EPA)</span>
-                    <span class="metric-val">+1.24</span>
-                </div>
-                <div class="metric-row" style="border:none">
-                    <span>Model Confidence</span>
-                    <span class="metric-val">92%</span>
+                <div style="margin-top:8px; display:flex; gap:8px; font-size:0.6rem;">
+                    <div style="flex:1; background:rgba(147,51,234,0.1); padding:6px; border-radius:6px; border:1px solid rgba(147,51,234,0.3);">
+                        <div style="color:#9333ea; font-weight:600;">22 Players</div>
+                        <div style="color:rgba(255,255,255,0.5);">Tracked</div>
+                    </div>
+                    <div style="flex:1; background:rgba(16,185,129,0.1); padding:6px; border-radius:6px; border:1px solid rgba(16,185,129,0.3);">
+                        <div style="color:#10b981; font-weight:600;">95%</div>
+                        <div style="color:rgba(255,255,255,0.5);">Confidence</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- DEFENSE RADAR (Right Floating) -->
-            <div class="radar-widget" id="radar-widget">
-                <!-- Simple SVG Radar Mock -->
-                <svg viewBox="0 0 100 100" style="width:100%; height:100%">
-                    <polygon points="50,10 90,40 70,80 30,80 10,40" fill="rgba(0,0,0,0.5)"
-                        stroke="rgba(255,255,255,0.2)" />
-                    <path d="M50 50 L50 10 M50 50 L90 40 M50 50 L70 80 M50 50 L30 80 M50 50 L10 40"
-                        stroke="rgba(255,255,255,0.1)" />
+            <!-- DECISION WIDGET (Left Floating - Moved Down) -->
+            <div class="decision-card" id="decision-widget" style="top:360px;">
+                <div class="decision-header">
+                    <span>4th & 3 • NE 42</span>
+                    <span class="risk-tag" style="background:rgba(52,211,153,0.2); color:#10b981;">RISK: LOW</span>
+                </div>
+                <div class="recommendation-badge" style="background:#10b981; color:#000;">GO FOR IT</div>
+                <div class="metric-row">
+                    <span>Conversion Prob</span>
+                    <span class="metric-val" style="color:#10b981;">72%</span>
+                </div>
+                <div class="metric-row">
+                    <span>Exp Points (EPA)</span>
+                    <span class="metric-val" style="color:#10b981;">+1.8</span>
+                </div>
+                <div class="metric-row" style="border:none">
+                    <span>Model Confidence</span>
+                    <span class="metric-val">94%</span>
+                </div>
+            </div>
+
+            <!-- AI INSIGHTS (Top Right) -->
+            <div style="position:absolute; top:100px; right:20px; width:300px; background:rgba(0,0,0,0.85); border-radius:12px; padding:14px; border:1px solid rgba(198,12,48,0.4);">
+                <div style="font-size:0.7rem; color:#C60C30; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">
+                    🤖 SCRYM AI Insights • NE
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="background:rgba(16,185,129,0.1); border-left:3px solid #10b981; padding:8px; border-radius:4px;">
+                        <div style="font-size:0.65rem; color:rgba(255,255,255,0.6); margin-bottom:3px;">PLAY RECOMMENDATION</div>
+                        <div style="font-size:0.75rem; color:white; font-weight:600;">Target Gronkowski Seam</div>
+                        <div style="font-size:0.6rem; color:rgba(255,255,255,0.5); margin-top:2px;">89% success vs Cover 3 • +12.4 EPA</div>
+                    </div>
+                    <div style="background:rgba(251,191,36,0.1); border-left:3px solid #fbbf24; padding:8px; border-radius:4px;">
+                        <div style="font-size:0.65rem; color:rgba(255,255,255,0.6); margin-bottom:3px;">SEAHAWKS BLITZ ALERT</div>
+                        <div style="font-size:0.75rem; color:white; font-weight:600;">82% Blitz Probability</div>
+                        <div style="font-size:0.6rem; color:rgba(255,255,255,0.5); margin-top:2px;">Hot route to RB recommended</div>
+                    </div>
+                    <div style="background:rgba(198,12,48,0.1); border-left:3px solid #C60C30; padding:8px; border-radius:4px;">
+                        <div style="font-size:0.65rem; color:rgba(255,255,255,0.6); margin-bottom:3px;">MOMENTUM SHIFT</div>
+                        <div style="font-size:0.75rem; color:white; font-weight:600;">Patriots Control Game</div>
+                        <div style="font-size:0.6rem; color:rgba(255,255,255,0.5); margin-top:2px;">3 consecutive first downs • +18% WP</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEFENSE RADAR (Right Floating - Moved Down) -->
+            <div class="radar-widget" id="radar-widget" style="top:460px;">
+                <!-- Enhanced SVG Radar with Labels -->
+                <svg viewBox="0 0 120 120" style="width:100%; height:100%">
+                    <!-- Background Pentagon -->
+                    <polygon points="60,15 100,45 80,85 40,85 20,45" fill="rgba(0,0,0,0.6)"
+                        stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                    <!-- Grid Lines -->
+                    <path d="M60 60 L60 15 M60 60 L100 45 M60 60 L80 85 M60 60 L40 85 M60 60 L20 45"
+                        stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
                     <!-- Data Shape -->
-                    <polygon points="50,15 80,45 65,75 35,70 20,45" fill="rgba(220,38,38,0.4)" stroke="#ef4444"
+                    <polygon points="60,20 90,48 75,80 45,75 30,48" fill="rgba(239,68,68,0.4)" stroke="#ef4444"
                         stroke-width="2" />
-                    <text x="50" y="55" fill="white" font-size="8" text-anchor="middle" font-weight="bold"
-                        opacity="0.5">DEF</text>
+
+                    <!-- Axis Labels -->
+                    <text x="60" y="10" fill="#10b981" font-size="6" text-anchor="middle" font-weight="bold">PASS RUSH</text>
+                    <text x="105" y="50" fill="#10b981" font-size="6" text-anchor="start" font-weight="bold">RUN D</text>
+                    <text x="85" y="95" fill="#10b981" font-size="6" text-anchor="middle" font-weight="bold">COVERAGE</text>
+                    <text x="35" y="95" fill="#10b981" font-size="6" text-anchor="middle" font-weight="bold">3RD DOWN</text>
+                    <text x="10" y="50" fill="#10b981" font-size="6" text-anchor="end" font-weight="bold">RED ZONE</text>
+
+                    <!-- Center Label -->
+                    <text x="60" y="63" fill="white" font-size="7" text-anchor="middle" font-weight="bold"
+                        opacity="0.8">DEFENSE</text>
+                    <text x="60" y="70" fill="#ef4444" font-size="6" text-anchor="middle" font-weight="bold">NICKEL</text>
                 </svg>
             </div>
 
@@ -95,10 +177,10 @@
             <div class="hud-bottom">
                 <div class="dynamic-island">
                     <div class="play-info">
-                        <span class="play-name" id="play-name">PA BOOT RIGHT</span>
+                        <span class="play-name" id="play-name" style="color:#C60C30;">PATRIOTS SPLIT ZONE</span>
                         <div class="play-meta">
-                            <span class="wristband-code">BLUE 42</span>
-                            <span>• Success 78%</span>
+                            <span class="wristband-code" style="background:rgba(198,12,48,0.2); color:#C60C30;">RAZOR 22</span>
+                            <span>• Success 81%</span>
                         </div>
                     </div>
 
@@ -128,27 +210,27 @@
             <i data-lucide="play-circle" class="replay-icon" size="32"></i>
         </div>
         <div class="challenge-center">
-            <div class="challenge-title">Challenge Assistant • Spot of Ball</div>
+            <div class="challenge-title">Challenge Assistant • Incomplete Pass (NE)</div>
             <div class="challenge-decision">
-                <button class="decision-btn challenge">CHALLENGE</button>
-                <button class="decision-btn no">DO NOT CHALLENGE</button>
+                <button class="decision-btn challenge" style="background:#10b981; border-color:#10b981;">CHALLENGE</button>
+                <button class="decision-btn no" style="opacity:0.5;">DO NOT CHALLENGE</button>
             </div>
         </div>
         <div class="challenge-stats">
             <div class="stat-row">
                 <span>Overturn Prob</span>
-                <span class="metric-val" style="color:var(--emerald-400)">84%</span>
+                <span class="metric-val" style="color:#10b981;">91%</span>
             </div>
             <div class="confidence-bar">
-                <div class="confidence-fill" style="width:84%"></div>
+                <div class="confidence-fill" style="width:91%; background:#10b981;"></div>
             </div>
             <div class="stat-row" style="margin-top:8px">
                 <span>Timeout Cost</span>
-                <span class="metric-val" style="color:var(--red-600)">-1 TO</span>
+                <span class="metric-val" style="color:#fbbf24;">-1 TO (NE has 2)</span>
             </div>
             <div class="stat-row">
                 <span>Exp Value</span>
-                <span class="metric-val">+2.4 pts</span>
+                <span class="metric-val" style="color:#10b981;">+3.8 pts</span>
             </div>
         </div>
     </div>
@@ -182,7 +264,7 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="/static/app.js"></script>
     <script>lucide.createIcons();</script>
 </body>
 

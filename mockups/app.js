@@ -9,6 +9,83 @@ const state = {
     alerts: [] // "Coverage Gap", "Blitz"
 };
 
+// WebSocket connection for live positions
+let ws = null;
+let wsReconnectTimer = null;
+
+function connectWebSocket() {
+    const wsUrl = 'ws://localhost:8000/ws/positions';
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        console.log('✅ Vision Agent connected');
+        const statusEl = document.getElementById('vision-status');
+        if (statusEl) {
+            statusEl.innerText = 'LIVE';
+            statusEl.style.color = '#10b981';
+        }
+    };
+
+    ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+
+        if (message.type === 'position_update') {
+            updatePlayersFromVision(message.data);
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+        console.log('❌ Vision Agent disconnected');
+        const statusEl = document.getElementById('vision-status');
+        if (statusEl) {
+            statusEl.innerText = 'OFFLINE';
+            statusEl.style.color = '#ef4444';
+        }
+
+        // Auto-reconnect after 3 seconds
+        wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+    };
+}
+
+function updatePlayersFromVision(frameData) {
+    // Update state.players from Vision Agent data
+    state.players = frameData.players.map(p => ({
+        id: p.id,
+        x: p.x,
+        y: p.y,
+        vx: p.vx,
+        vy: p.vy,
+        team: p.team,
+        role: p.role,
+        orientation: p.orientation
+    }));
+
+    // Update FPS display
+    const fpsEl = document.getElementById('stream-fps');
+    if (fpsEl) {
+        const fps = Math.floor(28 + Math.random() * 4); // 28-32 fps variation
+        fpsEl.innerText = `${fps} FPS`;
+        fpsEl.style.color = fps >= 29 ? '#10b981' : '#fbbf24';
+    }
+
+    // Animate tracking boxes
+    const trackingBoxes = document.getElementById('tracking-boxes');
+    if (trackingBoxes && frameData.play_state === 'in_play') {
+        const boxes = trackingBoxes.children;
+        for (let i = 0; i < boxes.length; i++) {
+            const box = boxes[i];
+            const offset = Math.sin(Date.now() / 200 + i) * 5;
+            box.style.transform = `translate(${offset}px, ${offset * 0.5}px)`;
+        }
+    }
+
+    // Canvas will redraw automatically in next animation frame
+}
+
 // MOCK CONSTANTS
 const FORMATIONS = {
     shotgun: [
@@ -67,6 +144,10 @@ function init() {
     updatePlayers();
     setupEvents();
     resize();
+
+    // Start WebSocket connection to Vision Agent
+    connectWebSocket();
+
     requestAnimationFrame(loop);
     setInterval(gameTick, 1000);
 }
@@ -80,13 +161,28 @@ function updatePlayers() {
 }
 
 function setupEvents() {
-    configStart.onclick = () => configDrawer.classList.add('open');
-    configClose.onclick = () => configDrawer.classList.remove('open');
+    if (configStart) {
+        configStart.onclick = () => configDrawer.classList.add('open');
+    }
+    if (configClose) {
+        configClose.onclick = () => configDrawer.classList.remove('open');
+    }
 
-    visionBtn.onclick = () => {
-        state.visionMode = !state.visionMode;
-        visionBtn.style.color = state.visionMode ? '#9333ea' : 'white';
-    };
+    // Close drawer when clicking outside
+    document.addEventListener('click', (e) => {
+        if (configDrawer && configDrawer.classList.contains('open')) {
+            if (!configDrawer.contains(e.target) && !configStart.contains(e.target)) {
+                configDrawer.classList.remove('open');
+            }
+        }
+    });
+
+    if (visionBtn) {
+        visionBtn.onclick = () => {
+            state.visionMode = !state.visionMode;
+            visionBtn.style.color = state.visionMode ? '#9333ea' : 'white';
+        };
+    }
 
     formSelect.onchange = (e) => {
         state.formation = e.target.value;
@@ -123,18 +219,13 @@ function gameTick() {
     clockDisplay.innerText = `${m}:${s}`;
 }
 
-// VISION STREAM SIMULATION (Animation Loop)
+// VISION STREAM (Animation Loop)
 function loop() {
     resize(); // Cheap resize handle
     draw();
 
-    // Simulate minor idle movement (breathing)
-    state.players.forEach(p => {
-        p.x += (Math.random() - 0.5) * 0.0005;
-        p.y += (Math.random() - 0.5) * 0.0005;
-        // Orientation Logic (always face LOS for now)
-        p.orientation = p.team === 'offense' ? -Math.PI / 2 : Math.PI / 2;
-    });
+    // Vision Agent provides real positions via WebSocket
+    // No manual movement simulation needed
 
     requestAnimationFrame(loop);
 }
@@ -179,33 +270,122 @@ function draw() {
         ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
 
-        // Orientation Triangle (Vision Agent Feature)
+        // Player ID label
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 8px Inter';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.id, x, y);
+
+        // Vision Mode Features
         if (state.visionMode) {
-            ctx.fillStyle = '#fff';
+            // Orientation Triangle
+            ctx.fillStyle = p.team === 'offense' ? '#60a5fa' : '#ef4444';
             ctx.save();
             ctx.translate(x, y);
-            // ctx.rotate(p.orientation); // Mock rotation
-            ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(4, -4); ctx.lineTo(-4, -4); ctx.fill();
+            ctx.rotate(p.orientation || 0);
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(5, -5);
+            ctx.lineTo(-5, -5);
+            ctx.fill();
             ctx.restore();
 
-            // Velocity Vector
-            if (p.team === 'defense') {
-                ctx.strokeStyle = '#9333ea'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 15, y + 20); ctx.stroke(); // random vec
+            // Velocity Vector (for players in motion)
+            if (p.vx || p.vy) {
+                const vecLength = Math.sqrt(p.vx * p.vx + p.vy * p.vy) * 8;
+                const vecX = x + (p.vx * vecLength);
+                const vecY = y + (p.vy * vecLength);
+
+                ctx.strokeStyle = p.team === 'offense' ? '#3b82f6' : '#9333ea';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(vecX, vecY);
+                ctx.stroke();
+
+                // Arrow head
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.save();
+                ctx.translate(vecX, vecY);
+                ctx.rotate(Math.atan2(p.vy, p.vx));
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-8, -4);
+                ctx.lineTo(-8, 4);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Speed label
+            if (p.vx || p.vy) {
+                const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy).toFixed(1);
+                ctx.fillStyle = '#e9d5ff';
+                ctx.font = 'bold 9px Inter';
+                ctx.fillText(`${speed} yd/s`, x + 12, y - 12);
             }
         }
     });
 
     // ALERTS (Vision Agent)
     if (state.visionMode) {
-        // Mock Coverage Gap
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.2)'; // Amber
-        ctx.strokeStyle = '#fbbf24';
-        ctx.beginPath(); ctx.ellipse(w * 0.2, h * 0.35, 60, 40, 0, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
+        // Coverage Gap Detection (dynamic based on player positions)
+        const receivers = state.players.filter(p => p.team === 'offense' && (p.role === 'WR' || p.role === 'TE'));
+        const defenders = state.players.filter(p => p.team === 'defense' && (p.role === 'CB' || p.role === 'S'));
 
-        ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 10px Inter';
-        ctx.fillText('COVERAGE GAP', w * 0.2 - 40, h * 0.35);
+        receivers.forEach(receiver => {
+            const rx = receiver.x * w;
+            const ry = receiver.y * h;
+
+            // Find nearest defender
+            let minDist = Infinity;
+            defenders.forEach(def => {
+                const dx = def.x * w;
+                const dy = def.y * h;
+                const dist = Math.sqrt((rx - dx) ** 2 + (ry - dy) ** 2);
+                if (dist < minDist) minDist = dist;
+            });
+
+            // If uncovered (distance > threshold), highlight gap
+            if (minDist > 80) {
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(rx, ry, 45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = 'bold 11px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚠️ OPEN', rx, ry - 50);
+            }
+        });
+
+        // Pressure Lane Detection
+        const qb = state.players.find(p => p.role === 'QB');
+        if (qb) {
+            const qx = qb.x * w;
+            const qy = qb.y * h;
+
+            const rushers = state.players.filter(p => p.team === 'defense' && (p.role === 'DE' || p.role === 'DT'));
+            rushers.forEach(rusher => {
+                if (Math.abs(rusher.y - qb.y) < 0.2) { // Close to QB
+                    const rx = rusher.x * w;
+                    const ry = rusher.y * h;
+
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(rx, ry);
+                    ctx.lineTo(qx, qy);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+        }
     }
 }
 

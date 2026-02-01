@@ -1,0 +1,290 @@
+# SCRYM - NFL AI Coach: Complete Requirements Specification
+
+## 1. MODEL OUTPUTS & METRICS
+
+### Model 3: Fourth Down Decision Engine
+**Outputs:**
+- **Conversion Probability** (0-100%): Likelihood of successfully converting the 4th down attempt
+- **Field Goal Success Probability** (0-100%): Likelihood of making the field goal from current yardline
+- **Expected Points Added (EPA)** (-7.0 to +7.0): Expected value change for each decision option
+- **Recommended Decision**: GO / PUNT / FIELD GOAL (categorical output)
+- **Confidence Score** (0-100%): Model's certainty in the recommendation
+- **Risk Assessment**: LOW / MEDIUM / HIGH based on score differential and game context
+
+**Input Features (6):**
+- Down (always 4)
+- Distance to first down (yards)
+- Yardline position (0-100)
+- Score differential (-35 to +35)
+- Time remaining (seconds)
+- Timeouts remaining (0-3)
+
+### Model 4: Win Probability Calculator
+**Outputs:**
+- **Win Probability** (0-100%): Current possession team's likelihood of winning
+- **Win Probability Delta**: Change from previous play
+- **Critical Threshold Alert**: Boolean flag when WP crosses 10%, 25%, 50%, 75%, 90%
+- **Comeback Probability** (when trailing): Specific calculation for deficit scenarios
+- **Momentum Score** (-10 to +10): Rate of WP change over last 5 plays
+
+**Input Features (8):**
+- Score differential
+- Time remaining (quarter + clock)
+- Field position
+- Down
+- Distance
+- Offensive timeouts remaining
+- Defensive timeouts remaining
+- Possession team
+
+### Future Models (Offensive & Defensive Coordinators)
+
+#### Offensive Play Recommendation Engine
+**Outputs:**
+- **Top 3 Play Recommendations**: PASS (Safe) / RUN (Inside) / SHOT (Deep)
+- **Success Probability per Play Type** (0-100%)
+- **Expected Yards per Play Type** (-5 to +25 yards)
+- **Personnel Package Recommendation**: 11 / 12 / 13 / 21 / 10 (personnel groupings)
+- **Formation Suggestion**: Shotgun / I-Form / Empty / Pistol / Singleback
+- **Wristband Code**: Auto-generated play call code (e.g., "BLUE 42")
+- **Red Zone Efficiency Score** (when inside 20-yard line)
+- **Play Action Effectiveness** (0-100%)
+- **Blitz Vulnerability**: Expected pressure rate if defense blitzes
+
+#### Defensive Tendency Prediction Engine
+**Outputs:**
+- **Play Type Prediction**: RUN / PASS / SCREEN / DRAW (with percentages)
+- **Formation Counter Recommendation**: Base / Nickel / Dime / Goal Line
+- **Blitz Recommendation**: YES / NO with timing window
+- **Coverage Suggestion**: Man / Zone / Cover 2 / Cover 3 / Cover 4
+- **Target Receiver Prediction**: Most likely receiving target (WR1, WR2, TE, RB)
+- **Fake Probability** (on 4th down): 0-100%
+- **Rush Direction Prediction**: Left / Middle / Right
+- **Defensive Pressure Score**: Expected QB hurries/sacks on this play
+
+## 2. WIDGET METRICS (ON-CANVAS & HUD)
+
+### Top Bar Widgets
+**Score Pill:**
+- Home Team Score (live)
+- Away Team Score (live)
+- Game Clock (MM:SS format)
+- Quarter indicator (Q1, Q2, Q3, Q4, OT)
+
+**Win Probability Gauge:**
+- Current Win Probability percentage (large display)
+- Win Probability bar graph (horizontal fill)
+- Win Probability trend indicator (↑ ↓ →)
+- Color coding: Blue (winning) / Red (losing) / Yellow (contested)
+
+**Top Right Controls:**
+- Settings toggle button
+- Vision Mode toggle button (AI coach overlay)
+- Notifications bell (for critical alerts)
+
+### On-Field Canvas Widgets
+**Defense Radar Widget:**
+- 5-axis radar chart showing defensive tendencies:
+  - Run Defense Strength
+  - Pass Rush Effectiveness
+  - Coverage Quality
+  - Red Zone Defense
+  - Third Down Conversion Defense
+- Live position overlay on field
+- Draggable/repositionable
+
+**Player Position Indicators:**
+- Player ID (QB, RB, WR1, etc.)
+- Team color coding (Blue = Offense, Red = Defense)
+- Position coordinates (X, Y on field)
+- Speed overlay (when Vision Mode active): SPD: XX mph
+- Route prediction lines (dotted paths)
+- Collision zones (highlighted danger areas)
+
+**Vision Mode Overlays (when active):**
+- Velocity vectors for each player
+- Speed metrics (0-22 mph)
+- Acceleration zones (highlighted)
+- Predicted player positions (1-3 seconds ahead)
+- Coverage gaps (highlighted in amber/yellow)
+- Pressure lanes (defensive rush paths)
+- Throwing windows (QB passing options)
+
+### Bottom HUD - Dynamic Island
+
+**Left Section (Current Play):**
+- Play Name (e.g., "PA BOOT RIGHT")
+- Play Success Probability percentage
+- Expected Yards for this play
+- Risk level indicator (Green/Yellow/Red badge)
+
+**Center Section (Context Tabs):**
+- **Offensive View**: Shows offensive metrics and recommendations
+- **Defensive View**: Shows defensive metrics and predictions
+- **Personnel View**: Shows player-specific stats and substitution suggestions
+- Active tab highlighted with glow effect
+
+**Right Section:**
+- Voice Command button (microphone icon)
+- Quick actions menu
+
+### Config Panel (Expandable)
+**Available Settings:**
+- Formation selector (Shotgun / Empty / I-Form / Pistol / Singleback)
+- Risk profile (Conservative / Standard / Aggressive)
+- AI confidence threshold slider (50-95%)
+- Vision mode sensitivity (Low / Medium / High)
+- Notification preferences
+- Personnel package quick-select
+
+## 3. FLAG ANALYSIS & REVIEW (BENEATH CANVAS)
+
+### Challenge Assistant Module
+**Location:** Fixed panel below the football field canvas
+
+**Display Components:**
+- **Call Type**: What is being challenged (Spot / Catch / TD / Turnover / Penalty)
+- **Original Call**: Official's ruling on field
+- **Video Thumbnail**: Frame capture of the disputed play
+- **AI Confidence Score** (0-100%): Likelihood of call being overturned
+- **Recommendation**: CHALLENGE / DO NOT CHALLENGE (large, color-coded)
+- **Success Probability**: Historical overturn rate for this call type
+- **Timeout Cost Indicator**: Shows if timeout will be lost on failed challenge
+- **Critical Context**: Score, time, timeouts remaining
+
+**Metrics Displayed:**
+- **Overturn Likelihood**: 0-100% (based on similar plays)
+- **Expected Value**: Points gained/lost if successful vs. cost of timeout
+- **Historical Success Rate**: For this type of challenge this season
+- **Referee Tendency**: This crew's overturn rate
+- **Video Angle Quality**: CLEAR / UNCLEAR (affects overturn probability)
+
+**Interactive Elements:**
+- "View Replay" button (shows frame-by-frame)
+- "Similar Plays" reference (past examples)
+- "Send to Booth" button (alert booth coaches)
+- Countdown timer (coach has 30 seconds to decide)
+
+## 4. VISION AGENTS INTEGRATION
+
+### AI Coach Vision System
+**GitHub Integration:** https://github.com/GetStream/Vision-Agents/tree/main/examples/02_golf_coach_example
+
+**Core Functionality:**
+The Vision Agents system will provide real-time computer vision analysis to:
+- **Track player positions** automatically from video feed
+- **Update canvas positioning** in real-time (no manual input needed)
+- **Detect formations** automatically (offense and defense)
+- **Identify personnel packages** via jersey number recognition
+- **Track ball location** and trajectory
+- **Measure player velocities** and acceleration
+- **Predict play outcomes** based on pre-snap alignment
+
+**Implementation Requirements:**
+
+1. **Video Input Pipeline:**
+   - Accept live game feed or uploaded video
+   - Process at 30 FPS minimum
+   - Support 1080p resolution
+   - Low-latency processing (<100ms per frame)
+
+2. **Player Tracking Output:**
+   - X, Y coordinates for all 22 players on field
+   - Player identification (jersey numbers)
+   - Team assignment (offense/defense)
+   - Real-time velocity vectors
+   - Orientation/direction facing
+
+3. **Formation Recognition:**
+   - Auto-detect offensive formation (Shotgun, I-Form, etc.)
+   - Auto-detect defensive alignment (4-3, 3-4, Nickel, Dime)
+   - Update canvas widgets automatically
+   - Trigger AI recommendations based on detected formations
+
+4. **Canvas Synchronization:**
+   - Vision Agent updates override manual positioning
+   - Smooth interpolation between frames (no jitter)
+   - Fallback to manual mode if video quality degrades
+   - Confidence scores displayed for tracking accuracy
+
+5. **AI Coach Recommendations:**
+   - Vision data feeds into all ML models as inputs
+   - Real-time EPA calculations based on actual player positions
+   - Coverage analysis (who's open, throwing windows)
+   - Pressure prediction (defensive rush lanes)
+   - Mismatch detection (personnel advantages)
+
+6. **Integration Touch Points:**
+   - `backend/vision_agent.py`: Vision processing service
+   - `backend/main.py`: FastAPI endpoint `/vision/track` for video upload
+   - `mockups/app.js`: Canvas update loop receives Vision Agent websocket data
+   - Real-time websocket connection for live position updates
+   - JSON format: `{players: [{id, x, y, velocity, team}], timestamp, confidence}`
+
+## 5. COMPREHENSIVE FEATURE LIST
+
+### Head Coach (HC) Persona Features
+- **Traffic Light 4th Down Decision**: Full-screen GO/PUNT/KICK recommendation
+- **Clock Management Alerts**: "TAKE TIMEOUT" or "LET IT RUN" prompts
+- **Challenge Assistant**: Flag analysis and overturn probability (below canvas)
+- **Win Probability Monitor**: Large gauge with trend indicators
+- **Score Tracking**: Live scoreboard with possession indicator
+- **Critical Alerts**: Time-sensitive notifications (2-minute warning, etc.)
+
+### Offensive Coordinator (OC) Persona Features
+- **Play Selection Cards**: 3 large touch targets (PASS/RUN/SHOT)
+- **Wristband Code Display**: Auto-generated play call codes
+- **Personnel Package Suggestions**: Real-time substitution recommendations
+- **Formation Optimizer**: Best formation for current down/distance
+- **Red Zone Assistant**: Specialized plays inside the 20
+- **Success Probability per Play**: Expected yards and conversion %
+- **Quick Send to QB**: One-tap play communication system
+
+### Defensive Coordinator (DC) Persona Features
+- **Tendency Alerts**: Pre-snap warnings ("WATCH SCREEN", "BLITZ NOW")
+- **Formation Counter**: Auto-match defensive package to offense
+- **Play Type Prediction**: RUN/PASS probabilities with confidence
+- **Coverage Recommendations**: Man/Zone suggestions
+- **4th Down Fake Detection**: Probability opponent will go for it
+- **Target Receiver Prediction**: Most likely receiving threat
+- **Defensive Radar Widget**: 5-axis chart of defensive strengths
+
+### Universal Features (All Personas)
+- **Vision Mode**: Real-time player tracking with AI overlays
+- **Voice Commands**: Microphone button for hands-free operation
+- **Context Switching**: Toggle between Offense/Defense/Personnel views
+- **Settings Panel**: Formation, risk profile, notification preferences
+- **Game Clock**: Live countdown with quarter indicator
+- **Field Canvas**: Interactive football field visualization
+- **Flag Analysis Panel**: Below canvas, challenge decision support
+- **Vision Agent Integration**: Automatic position tracking from video
+
+## 6. TECHNICAL SPECIFICATIONS
+
+### Data Requirements
+- NFL Play-by-Play data (2018-2024) via nfl_data_py
+- FTN Charting data for advanced metrics
+- Roster data for player identification
+- (Future) ESPN Live API for real-time game state
+- Video feed input for Vision Agents
+
+### Performance Targets
+- Model inference: <50ms per request
+- Canvas refresh rate: 60 FPS
+- Vision processing: <100ms latency
+- API response time: <200ms
+- Real-time websocket updates: <30ms
+
+### Tech Stack
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, Canvas API
+- **Backend**: Python 3.11, FastAPI, PyTorch
+- **Vision**: Vision Agents (from GetStream GitHub)
+- **Data**: Parquet files, StandardScaler, LabelEncoder
+- **Communication**: WebSocket for real-time updates
+
+### Data Flow
+Video Feed → Vision Agents → Player Positions → WebSocket → Canvas + ML Models → Recommendations → UI Widgets
+
+---
+
+**This document encompasses ALL metrics, model outputs, widget specifications, flag analysis requirements, and Vision Agent integration for the SCRYM NFL AI Coach system.**

@@ -3,13 +3,17 @@ FastAPI Server for 4th Down Bot Inference
 Serves real-time recommendations and win probability.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import torch
 import joblib
 import numpy as np
 from pathlib import Path
+import asyncio
+from typing import List
 
 from models import (
     FourthDownDecisionModel, WinProbabilityModel,
@@ -17,6 +21,10 @@ from models import (
 )
 from feature_engineering import NFLFeatureEngineer
 from demo_scenarios import get_demo_scenarios, get_scenario_by_id
+from websocket_manager import manager
+from vision_agent import vision_service
+from position_enrichment import extract_formation_features, calculate_coverage_gaps
+from config import config
 
 app = FastAPI(title="NFL AI Coach API")
 
@@ -27,6 +35,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve static files from mockups directory
+MOCKUP_DIR = Path(__file__).parent.parent / "mockups"
+app.mount("/static", StaticFiles(directory=str(MOCKUP_DIR)), name="static")
 
 # Paths
 MODEL_DIR = Path(__file__).parent.parent / "models"
@@ -179,9 +191,83 @@ async def predict_fourth_down(state: GameState):
         "win_probability": round(win_prob.item(), 4)
     }
 
+@app.get("/")
+def serve_frontend():
+    """Serve the main frontend HTML"""
+    return FileResponse(str(MOCKUP_DIR / "index.html"))
+
 @app.get("/health")
 def health():
     return {"status": "ok", "models_loaded": list(models.keys())}
+
+@app.get("/api/vision/status")
+def vision_status():
+    """Get Vision Agent status"""
+    return {
+        "mode": vision_service.mode,
+        "connections": len(manager.active_connections),
+        "fps": config.WS_FPS,
+        "stream_api_key": config.STREAM_API_KEY
+    }
+
+@app.websocket("/ws/positions")
+async def websocket_positions(websocket: WebSocket):
+    """
+    WebSocket endpoint for streaming player positions.
+    Sends 30fps position updates to frontend canvas.
+    """
+    await manager.connect(websocket)
+
+    try:
+        # Start streaming task
+        stream_task = asyncio.create_task(stream_positions_to_client(websocket))
+
+        # Keep connection alive and handle client messages
+        while True:
+            try:
+                data = await websocket.receive_text()
+                # Handle commands if needed
+                if data == "ping":
+                    await manager.send_personal({"type": "pong"}, websocket)
+            except WebSocketDisconnect:
+                break
+
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        manager.disconnect(websocket)
+        stream_task.cancel()
+
+async def stream_positions_to_client(websocket: WebSocket):
+    """Background task to stream position data to a specific client"""
+    async for frame_data in vision_service.start_tracking_stream():
+        try:
+            await websocket.send_json({
+                "type": "position_update",
+                "data": frame_data
+            })
+        except Exception as e:
+            print(f"Error streaming to client: {e}")
+            break
+
+@app.post("/predict/epa-live")
+async def predict_epa_live(state: GameState, positions: List[dict]):
+    """
+    Enhanced EPA prediction using live player positions.
+    Combines game state + Vision Agent data.
+    """
+    # Extract position features
+    position_features = extract_formation_features(positions)
+
+    # Calculate coverage gaps
+    gaps = calculate_coverage_gaps(positions)
+
+    return {
+        "position_features": position_features,
+        "coverage_gaps": gaps,
+        "gap_count": len(gaps),
+        "message": "Position-enhanced EPA coming soon (requires model retraining)"
+    }
 
 if __name__ == "__main__":
     import uvicorn
