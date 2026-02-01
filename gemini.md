@@ -25,3 +25,6 @@
 - **Explain Critical Commands:** Especially those modifying the system or filesystem.
 
 - **Conciseness:** Keep text output minimal and professional.
+
+## 🎨 Styling
+- **No Tailwind CSS:** NEVER use Tailwind CSS for styling. All styling must be done using plain CSS or CSS-in-JS libraries.
