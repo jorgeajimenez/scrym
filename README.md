@@ -2,7 +2,7 @@
 
 **NFL AI Coach** is a data-driven decision support system designed for the **Gemini 3 SuperHack 2026**. This demo version focuses specifically on the **4th Down Bot**, a critical component that builds the foundation for the full AI coaching suite.
 
-> **Note:** A snapshot of the hackathon progress as of Jan 31, 2026 is available in the branch [`snapshot/backup-2026-01-31`](https://github.com/jorgeajimenez/scrym/tree/snapshot/backup-2026-01-31).
+> **Note:** Other work not merged (presented as an alternate) is available in the branch [`snapshot/backup-2026-01-31`](https://github.com/jorgeajimenez/scrym/tree/snapshot/backup-2026-01-31).
 
 ## 🚀 Demo Focus: The 4th Down Bot
 The platform uses a multi-output neural network to analyze 4th down situations and recommend the optimal decision: **Go for it**, **Punt**, or **Field Goal**.
